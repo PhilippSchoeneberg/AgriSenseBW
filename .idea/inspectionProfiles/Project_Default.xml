@@ -1,0 +1,66 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="absl-py" />
+          <option value="astunparse" />
+          <option value="contourpy" />
+          <option value="cycler" />
+          <option value="flatbuffers" />
+          <option value="fonttools" />
+          <option value="gast" />
+          <option value="google-pasta" />
+          <option value="grpcio" />
+          <option value="h5py" />
+          <option value="ipywidgets" />
+          <option value="joblib" />
+          <option value="jupyterlab_widgets" />
+          <option value="keras" />
+          <option value="kiwisolver" />
+          <option value="libclang" />
+          <option value="Markdown" />
+          <option value="markdown-it-py" />
+          <option value="MarkupSafe" />
+          <option value="matplotlib" />
+          <option value="mdurl" />
+          <option value="ml-dtypes" />
+          <option value="namex" />
+          <option value="numpy" />
+          <option value="opt_einsum" />
+          <option value="optree" />
+          <option value="pandas" />
+          <option value="pillow" />
+          <option value="protobuf" />
+          <option value="pyparsing" />
+          <option value="pytz" />
+          <option value="rich" />
+          <option value="scikit-learn" />
+          <option value="scipy" />
+          <option value="seaborn" />
+          <option value="setuptools" />
+          <option value="tensorboard" />
+          <option value="tensorboard-data-server" />
+          <option value="tensorflow" />
+          <option value="tensorflow-macos" />
+          <option value="tensorflow-metal" />
+          <option value="termcolor" />
+          <option value="threadpoolctl" />
+          <option value="tzdata" />
+          <option value="Werkzeug" />
+          <option value="wheel" />
+          <option value="widgetsnbextension" />
+          <option value="wrapt" />
+          <option value="zstandard" />
+          <option value="jinja2" />
+          <option value="pymysql" />
+          <option value="python-dotenv" />
+          <option value="sqlalchemy" />
+          <option value="cryptography" />
+          <option value="beautifulsoup4" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
