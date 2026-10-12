@@ -1,0 +1,145 @@
+date,district,location,rainfall_mm,temperature_c,ndvi,yield_t_ha,data_source
+2001-03-31,Southern,Kanye,296.5,23.33,0.382,0.262,synthetic_sample
+2001-03-31,Southern,Moshupa,273.1,22.91,0.367,0.296,synthetic_sample
+2001-03-31,Southern,Jwaneng,240.1,23.56,0.347,0.224,synthetic_sample
+2001-03-31,Southern,Good Hope,226.0,23.37,0.359,0.217,synthetic_sample
+2001-03-31,Southern,Mabutsane,180.7,23.65,0.329,0.164,synthetic_sample
+2001-03-31,Southern,Mmathethe,229.1,23.53,0.406,0.208,synthetic_sample
+2002-03-31,Southern,Kanye,521.2,24.99,0.59,0.454,synthetic_sample
+2002-03-31,Southern,Moshupa,566.3,24.62,0.577,0.436,synthetic_sample
+2002-03-31,Southern,Jwaneng,573.6,25.27,0.607,0.419,synthetic_sample
+2002-03-31,Southern,Good Hope,526.9,25.31,0.586,0.429,synthetic_sample
+2002-03-31,Southern,Mabutsane,662.5,25.05,0.62,0.618,synthetic_sample
+2002-03-31,Southern,Mmathethe,677.3,25.06,0.62,0.551,synthetic_sample
+2003-03-31,Southern,Kanye,304.8,24.68,0.379,0.189,synthetic_sample
+2003-03-31,Southern,Moshupa,274.3,23.91,0.326,0.185,synthetic_sample
+2003-03-31,Southern,Jwaneng,309.7,24.61,0.411,0.198,synthetic_sample
+2003-03-31,Southern,Good Hope,291.7,24.22,0.364,0.308,synthetic_sample
+2003-03-31,Southern,Mabutsane,233.5,25.24,0.361,0.147,synthetic_sample
+2003-03-31,Southern,Mmathethe,253.4,24.88,0.354,0.229,synthetic_sample
+2004-03-31,Southern,Kanye,261.4,24.26,0.379,0.171,synthetic_sample
+2004-03-31,Southern,Moshupa,251.8,23.9,0.329,0.229,synthetic_sample
+2004-03-31,Southern,Jwaneng,250.8,24.06,0.295,0.141,synthetic_sample
+2004-03-31,Southern,Good Hope,255.4,24.96,0.348,0.181,synthetic_sample
+2004-03-31,Southern,Mabutsane,194.3,24.49,0.247,0.118,synthetic_sample
+2004-03-31,Southern,Mmathethe,270.5,24.26,0.422,0.242,synthetic_sample
+2005-03-31,Southern,Kanye,403.5,24.76,0.393,0.288,synthetic_sample
+2005-03-31,Southern,Moshupa,343.0,24.75,0.486,0.242,synthetic_sample
+2005-03-31,Southern,Jwaneng,346.8,25.6,0.446,0.275,synthetic_sample
+2005-03-31,Southern,Good Hope,322.8,25.09,0.448,0.267,synthetic_sample
+2005-03-31,Southern,Mabutsane,353.1,25.61,0.492,0.244,synthetic_sample
+2005-03-31,Southern,Mmathethe,287.9,24.65,0.347,0.232,synthetic_sample
+2006-03-31,Southern,Kanye,198.5,26.57,0.284,0.02,synthetic_sample
+2006-03-31,Southern,Moshupa,225.8,25.57,0.343,0.135,synthetic_sample
+2006-03-31,Southern,Jwaneng,144.0,26.91,0.332,0.04,synthetic_sample
+2006-03-31,Southern,Good Hope,173.3,26.47,0.262,0.023,synthetic_sample
+2006-03-31,Southern,Mabutsane,150.5,26.51,0.313,0.02,synthetic_sample
+2006-03-31,Southern,Mmathethe,157.9,25.76,0.306,0.092,synthetic_sample
+2007-03-31,Southern,Kanye,409.5,26.0,0.445,0.284,synthetic_sample
+2007-03-31,Southern,Moshupa,526.3,24.92,0.614,0.441,synthetic_sample
+2007-03-31,Southern,Jwaneng,441.9,25.57,0.547,0.299,synthetic_sample
+2007-03-31,Southern,Good Hope,359.3,25.99,0.425,0.221,synthetic_sample
+2007-03-31,Southern,Mabutsane,490.9,26.22,0.56,0.374,synthetic_sample
+2007-03-31,Southern,Mmathethe,390.8,25.73,0.502,0.303,synthetic_sample
+2008-03-31,Southern,Kanye,336.2,24.91,0.462,0.281,synthetic_sample
+2008-03-31,Southern,Moshupa,348.4,24.71,0.459,0.285,synthetic_sample
+2008-03-31,Southern,Jwaneng,301.8,25.04,0.345,0.209,synthetic_sample
+2008-03-31,Southern,Good Hope,320.3,25.34,0.416,0.234,synthetic_sample
+2008-03-31,Southern,Mabutsane,279.4,25.65,0.388,0.205,synthetic_sample
+2008-03-31,Southern,Mmathethe,286.1,25.4,0.407,0.197,synthetic_sample
+2009-03-31,Southern,Kanye,255.2,25.36,0.364,0.138,synthetic_sample
+2009-03-31,Southern,Moshupa,283.1,24.76,0.344,0.141,synthetic_sample
+2009-03-31,Southern,Jwaneng,242.7,25.6,0.333,0.146,synthetic_sample
+2009-03-31,Southern,Good Hope,275.4,25.46,0.351,0.125,synthetic_sample
+2009-03-31,Southern,Mabutsane,241.1,25.89,0.408,0.2,synthetic_sample
+2009-03-31,Southern,Mmathethe,322.5,26.06,0.369,0.199,synthetic_sample
+2010-03-31,Southern,Kanye,655.9,26.5,0.62,0.406,synthetic_sample
+2010-03-31,Southern,Moshupa,444.0,26.23,0.5,0.241,synthetic_sample
+2010-03-31,Southern,Jwaneng,428.9,26.75,0.524,0.262,synthetic_sample
+2010-03-31,Southern,Good Hope,454.3,26.56,0.517,0.245,synthetic_sample
+2010-03-31,Southern,Mabutsane,454.4,27.41,0.539,0.209,synthetic_sample
+2010-03-31,Southern,Mmathethe,455.0,26.02,0.447,0.307,synthetic_sample
+2011-03-31,Southern,Kanye,316.7,23.38,0.409,0.317,synthetic_sample
+2011-03-31,Southern,Moshupa,464.9,23.05,0.535,0.434,synthetic_sample
+2011-03-31,Southern,Jwaneng,312.7,23.68,0.438,0.253,synthetic_sample
+2011-03-31,Southern,Good Hope,410.2,24.01,0.479,0.357,synthetic_sample
+2011-03-31,Southern,Mabutsane,264.6,24.53,0.403,0.22,synthetic_sample
+2011-03-31,Southern,Mmathethe,345.3,23.65,0.406,0.308,synthetic_sample
+2012-03-31,Southern,Kanye,262.4,24.33,0.376,0.315,synthetic_sample
+2012-03-31,Southern,Moshupa,272.5,24.22,0.376,0.185,synthetic_sample
+2012-03-31,Southern,Jwaneng,241.5,25.16,0.353,0.216,synthetic_sample
+2012-03-31,Southern,Good Hope,225.5,24.21,0.316,0.136,synthetic_sample
+2012-03-31,Southern,Mabutsane,193.8,25.11,0.283,0.103,synthetic_sample
+2012-03-31,Southern,Mmathethe,224.4,24.37,0.307,0.165,synthetic_sample
+2013-03-31,Southern,Kanye,496.0,24.41,0.523,0.388,synthetic_sample
+2013-03-31,Southern,Moshupa,515.2,23.86,0.55,0.423,synthetic_sample
+2013-03-31,Southern,Jwaneng,549.0,24.6,0.598,0.463,synthetic_sample
+2013-03-31,Southern,Good Hope,427.9,24.32,0.475,0.368,synthetic_sample
+2013-03-31,Southern,Mabutsane,400.3,24.77,0.369,0.26,synthetic_sample
+2013-03-31,Southern,Mmathethe,487.1,24.65,0.55,0.383,synthetic_sample
+2014-03-31,Southern,Kanye,245.8,25.05,0.317,0.199,synthetic_sample
+2014-03-31,Southern,Moshupa,416.9,24.79,0.514,0.399,synthetic_sample
+2014-03-31,Southern,Jwaneng,255.5,25.26,0.37,0.134,synthetic_sample
+2014-03-31,Southern,Good Hope,400.1,24.95,0.444,0.302,synthetic_sample
+2014-03-31,Southern,Mabutsane,311.7,25.24,0.383,0.224,synthetic_sample
+2014-03-31,Southern,Mmathethe,253.9,24.8,0.331,0.156,synthetic_sample
+2015-03-31,Southern,Kanye,337.0,25.5,0.453,0.251,synthetic_sample
+2015-03-31,Southern,Moshupa,392.7,25.7,0.429,0.174,synthetic_sample
+2015-03-31,Southern,Jwaneng,301.7,25.98,0.406,0.158,synthetic_sample
+2015-03-31,Southern,Good Hope,317.0,25.99,0.429,0.242,synthetic_sample
+2015-03-31,Southern,Mabutsane,220.3,25.74,0.386,0.154,synthetic_sample
+2015-03-31,Southern,Mmathethe,343.8,25.68,0.411,0.225,synthetic_sample
+2016-03-31,Southern,Kanye,237.1,24.33,0.406,0.219,synthetic_sample
+2016-03-31,Southern,Moshupa,259.8,24.39,0.338,0.16,synthetic_sample
+2016-03-31,Southern,Jwaneng,197.3,24.55,0.389,0.155,synthetic_sample
+2016-03-31,Southern,Good Hope,265.3,24.35,0.386,0.239,synthetic_sample
+2016-03-31,Southern,Mabutsane,211.8,24.96,0.305,0.181,synthetic_sample
+2016-03-31,Southern,Mmathethe,244.6,24.2,0.371,0.166,synthetic_sample
+2017-03-31,Southern,Kanye,530.1,25.85,0.593,0.355,synthetic_sample
+2017-03-31,Southern,Moshupa,408.2,25.58,0.473,0.287,synthetic_sample
+2017-03-31,Southern,Jwaneng,272.8,25.67,0.31,0.207,synthetic_sample
+2017-03-31,Southern,Good Hope,381.3,25.96,0.449,0.191,synthetic_sample
+2017-03-31,Southern,Mabutsane,322.4,25.92,0.378,0.186,synthetic_sample
+2017-03-31,Southern,Mmathethe,350.0,25.64,0.405,0.187,synthetic_sample
+2018-03-31,Southern,Kanye,330.8,23.85,0.413,0.263,synthetic_sample
+2018-03-31,Southern,Moshupa,473.7,23.79,0.491,0.334,synthetic_sample
+2018-03-31,Southern,Jwaneng,315.6,24.66,0.413,0.162,synthetic_sample
+2018-03-31,Southern,Good Hope,294.3,24.22,0.428,0.258,synthetic_sample
+2018-03-31,Southern,Mabutsane,309.8,24.76,0.446,0.223,synthetic_sample
+2018-03-31,Southern,Mmathethe,350.9,23.85,0.395,0.311,synthetic_sample
+2019-03-31,Southern,Kanye,203.2,24.97,0.336,0.131,synthetic_sample
+2019-03-31,Southern,Moshupa,230.0,24.87,0.304,0.162,synthetic_sample
+2019-03-31,Southern,Jwaneng,148.8,25.34,0.313,0.096,synthetic_sample
+2019-03-31,Southern,Good Hope,122.4,25.33,0.223,0.056,synthetic_sample
+2019-03-31,Southern,Mabutsane,185.9,26.37,0.334,0.03,synthetic_sample
+2019-03-31,Southern,Mmathethe,148.8,25.22,0.299,0.124,synthetic_sample
+2020-03-31,Southern,Kanye,145.1,26.53,0.298,0.026,synthetic_sample
+2020-03-31,Southern,Moshupa,157.9,25.38,0.25,0.077,synthetic_sample
+2020-03-31,Southern,Jwaneng,144.4,26.06,0.311,0.035,synthetic_sample
+2020-03-31,Southern,Good Hope,164.8,26.07,0.312,0.087,synthetic_sample
+2020-03-31,Southern,Mabutsane,101.0,26.27,0.31,0.02,synthetic_sample
+2020-03-31,Southern,Mmathethe,153.8,26.14,0.221,0.044,synthetic_sample
+2021-03-31,Southern,Kanye,218.0,24.79,0.342,0.138,synthetic_sample
+2021-03-31,Southern,Moshupa,194.1,24.36,0.348,0.219,synthetic_sample
+2021-03-31,Southern,Jwaneng,201.2,25.42,0.355,0.075,synthetic_sample
+2021-03-31,Southern,Good Hope,168.4,25.1,0.23,0.063,synthetic_sample
+2021-03-31,Southern,Mabutsane,154.8,25.25,0.26,0.087,synthetic_sample
+2021-03-31,Southern,Mmathethe,187.1,24.72,0.312,0.231,synthetic_sample
+2022-03-31,Southern,Kanye,593.7,25.24,0.62,0.498,synthetic_sample
+2022-03-31,Southern,Moshupa,528.1,25.26,0.576,0.397,synthetic_sample
+2022-03-31,Southern,Jwaneng,379.6,25.62,0.47,0.218,synthetic_sample
+2022-03-31,Southern,Good Hope,409.0,25.48,0.481,0.278,synthetic_sample
+2022-03-31,Southern,Mabutsane,408.4,25.77,0.463,0.228,synthetic_sample
+2022-03-31,Southern,Mmathethe,369.5,25.45,0.451,0.185,synthetic_sample
+2023-03-31,Southern,Kanye,587.9,24.82,0.586,0.448,synthetic_sample
+2023-03-31,Southern,Moshupa,466.3,24.53,0.551,0.371,synthetic_sample
+2023-03-31,Southern,Jwaneng,547.0,25.16,0.576,0.444,synthetic_sample
+2023-03-31,Southern,Good Hope,409.1,24.76,0.486,0.32,synthetic_sample
+2023-03-31,Southern,Mabutsane,559.1,25.21,0.602,0.386,synthetic_sample
+2023-03-31,Southern,Mmathethe,467.7,24.53,0.603,0.391,synthetic_sample
+2024-03-31,Southern,Kanye,316.7,25.81,0.432,0.198,synthetic_sample
+2024-03-31,Southern,Moshupa,416.5,25.48,0.434,0.258,synthetic_sample
+2024-03-31,Southern,Jwaneng,338.5,25.9,0.443,0.252,synthetic_sample
+2024-03-31,Southern,Good Hope,376.0,25.86,0.5,0.266,synthetic_sample
+2024-03-31,Southern,Mabutsane,332.7,26.06,0.412,0.231,synthetic_sample
+2024-03-31,Southern,Mmathethe,381.5,25.8,0.456,0.258,synthetic_sample
