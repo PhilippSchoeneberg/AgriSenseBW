@@ -1,0 +1,107 @@
+"""AgriSense BW dashboard: FastAPI app with one page and a small JSON API.
+
+Run from the repository folder:
+    uvicorn src.main:app --reload
+then open http://127.0.0.1:8000 (API documentation at /docs).
+"""
+from __future__ import annotations
+
+import datetime as dt
+from pathlib import Path
+from typing import Annotated, Literal
+
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
+
+from . import data
+
+HERE = Path(__file__).resolve().parent
+AlertType = Literal["crop", "livestock"]
+Risk = Literal["Low", "Medium", "High"]
+Status = Literal["open", "acknowledged", "resolved"]
+
+app = FastAPI(
+    title="AgriSense BW",
+    summary="Early-warning alerts for crops and livestock in Botswana (demo with sample data).",
+    version="1.0",
+)
+app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
+templates = Jinja2Templates(directory=HERE / "templates")
+
+
+def nice_date(iso: str) -> str:
+    """2026-09-30 -> Wed 30 Sep 2026"""
+    d = dt.date.fromisoformat(iso)
+    return f"{d:%a} {d.day} {d:%b %Y}"
+
+
+templates.env.filters["nice_date"] = nice_date
+# ?v=<last change> on our own CSS/JS links, so browsers never run an outdated cached copy.
+templates.env.globals["version"] = lambda path: int((HERE / "static" / path).stat().st_mtime)
+
+
+class StatusUpdate(BaseModel):
+    status: Status
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def index(request: Request):
+    return templates.TemplateResponse(request, "index.html", {
+        "summary": data.summary(),
+        "dates": data.livestock_dates(),
+    })
+
+
+@app.get("/api/summary", tags=["alerts"])
+def get_summary() -> dict:
+    """Alert counts by risk, type and status, plus a few facts about the data."""
+    return data.summary()
+
+
+@app.get("/api/alerts", tags=["alerts"])
+def get_alerts(type: AlertType | None = None,
+               risk: Annotated[list[Risk] | None, Query()] = None,
+               status: Status | None = None, since: dt.date | None = None) -> list[dict]:
+    """Alerts from final_alerts.csv with their current status, most urgent first.
+
+    `risk` can be given more than once (`?risk=High&risk=Medium`). `since` keeps
+    alerts that were still active on or after that date.
+    """
+    return data.alerts(type=type, risk=risk, status=status,
+                       since=since.isoformat() if since else None)
+
+
+@app.patch("/api/alerts/{alert_id}/status", tags=["alerts"])
+def update_status(alert_id: str, update: StatusUpdate) -> dict:
+    """Mark an alert as open, acknowledged or resolved. The status survives a database rebuild."""
+    alert = data.set_status(alert_id, update.status)
+    if alert is None:
+        raise HTTPException(404, f"No alert with ID {alert_id}")
+    return alert
+
+
+@app.get("/api/livestock/positions", tags=["livestock"])
+def get_positions(date: dt.date | None = None) -> dict:
+    """Each animal's position on a day (default: the latest), and whether it has an alert."""
+    result = data.positions(date.isoformat() if date else None)
+    if result is None:
+        raise HTTPException(404, f"No livestock readings on {date}")
+    return result
+
+
+@app.get("/api/livestock/{animal_id}", tags=["livestock"])
+def get_animal(animal_id: str) -> dict:
+    """Daily activity, body temperature and distance moved for one animal, plus its alerts."""
+    result = data.animal(animal_id)
+    if result is None:
+        raise HTTPException(404, f"No animal with ID {animal_id}")
+    return result
+
+
+@app.get("/api/crops", tags=["crops"])
+def get_crops() -> dict:
+    """Yield per site and season, and the crop alerts with their predicted yield."""
+    return data.crops()

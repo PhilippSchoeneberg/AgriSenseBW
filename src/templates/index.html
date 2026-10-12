@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block body %}
+<header class="site-band">
+  <div class="site-bar">
+    <a class="brand" href="/" aria-label="AgriSense BW, home">
+      <img src="{{ url_for('static', path='img/logo.svg') }}" width="44" height="44" alt="">
+      <span class="wordmark">AgriSense <span>BW</span></span>
+    </a>
+    <nav class="tabs" role="tablist" aria-label="Dashboard sections">
+      <button role="tab" id="tab-crops" aria-controls="panel-crops" aria-selected="false" tabindex="-1">Crops</button>
+      <button role="tab" id="tab-livestock" aria-controls="panel-livestock" aria-selected="false" tabindex="-1">Livestock</button>
+      <button role="tab" id="tab-alerts" aria-controls="panel-alerts" aria-selected="true">Alerts</button>
+    </nav>
+    <span class="pill" title="Crop and livestock readings are simulated, not real farm data">Sample data</span>
+  </div>
+</header>
+
+<section class="overview" aria-label="Overview">
+  <p class="lede">Early warnings for crops and livestock · {{ summary.district }} district</p>
+  <ul class="tiles">
+    <li class="tile"><span class="tile-label"><span class="badge risk-High">High</span> open</span>
+      <span class="tile-value" data-open="High">{{ summary.open_by_risk.High }}</span></li>
+    <li class="tile"><span class="tile-label"><span class="badge risk-Medium">Medium</span> open</span>
+      <span class="tile-value" data-open="Medium">{{ summary.open_by_risk.Medium }}</span></li>
+    <li class="tile"><span class="tile-label">Crop sites at risk</span>
+      <span class="tile-value">{{ summary.crop_sites_at_risk }} <small>of {{ summary.crop_sites }}</small></span></li>
+    <li class="tile"><span class="tile-label">Animals with alerts</span>
+      <span class="tile-value">{{ summary.flagged_animals }} <small>of {{ summary.animals }}</small></span></li>
+    <li class="tile"><span class="tile-label">Outbreak warnings</span>
+      <span class="tile-value">{{ summary.outbreaks }}</span></li>
+  </ul>
+</section>
+
+<main>
+  <section id="panel-alerts" role="tabpanel" aria-labelledby="tab-alerts">
+    <form class="filters" id="alert-filters">
+      <label>Type
+        <select name="type"><option value="">All</option><option value="crop">Crop</option><option value="livestock">Livestock</option></select>
+      </label>
+      <label>Risk
+        <select name="risk"><option value="">All</option><option>High</option><option>Medium</option><option>Low</option></select>
+      </label>
+      <label>Status
+        <select name="status"><option value="">All</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="resolved">Resolved</option></select>
+      </label>
+      <fieldset class="lang">
+        <legend>Advice language</legend>
+        <label><input type="radio" name="lang" value="en" checked> English</label>
+        <label><input type="radio" name="lang" value="tn"> Setswana</label>
+      </fieldset>
+    </form>
+    {% if summary.missing_setswana %}<p class="note">{{ summary.missing_setswana }} advice texts still need a Setswana translation; they are shown in English until then.</p>{% endif %}
+    <p class="count" id="alert-count" aria-live="polite"></p>
+    <div class="table-wrap">
+      <table class="alerts">
+        <thead><tr><th>Risk</th><th>What and why</th><th>Advice</th><th>When</th><th>Status</th></tr></thead>
+        <tbody id="alert-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="panel-livestock" role="tabpanel" aria-labelledby="tab-livestock" hidden>
+    <div class="livestock">
+      <div class="map-col">
+        <div class="map-head">
+          <fieldset class="risk-filter">
+            <legend>Show animals with risk</legend>
+            {% for risk in ["High", "Medium", "Low"] %}
+            <label class="check"><input type="checkbox" name="show-risk" value="{{ risk }}" checked>
+              <span class="dot {{ risk }}" aria-hidden="true"></span>{{ risk }} <span class="n" data-count="{{ risk }}"></span></label>
+            {% endfor %}
+          </fieldset>
+          <label>Day
+            <select id="day">
+              {% for d in dates %}<option value="{{ d }}"{% if loop.last %} selected{% endif %}>{{ d | nice_date }}</option>{% endfor %}
+            </select>
+          </label>
+          <ul class="legend" aria-label="Map legend">
+            <li>Dots show where each animal was on the chosen day, coloured by its risk level.</li>
+            <li><span class="key key-track"></span> Path of a straying animal</li>
+          </ul>
+        </div>
+        <div id="map" role="img" aria-label="Map of animal positions"></div>
+        <p class="note">Map tiles need internet. Without it, the animals still show on a blank background.</p>
+      </div>
+      <aside class="animal-col">
+        <h2>Animals by risk</h2>
+        <div id="flagged-list"></div>
+        <div id="animal-detail">
+          <p class="hint">Choose an animal on the map or in the list.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="panel-crops" role="tabpanel" aria-labelledby="tab-crops" hidden>
+    <div class="crops">
+      <figure class="chart-card">
+        <figcaption>
+          <h2>Yield per season and site</h2>
+          <p>Tonnes per hectare, seasons 2001–2024. The dashed line is the district average used by the crop model.</p>
+        </figcaption>
+        <div class="chips" id="site-chips" aria-label="Highlight a site"></div>
+        <div class="chart-box"><canvas id="yield-chart" aria-label="Line chart of yield per site and season"></canvas></div>
+      </figure>
+      <div class="chart-card">
+        <h2>2024 harvest forecast</h2>
+        <table class="plain">
+          <thead><tr><th>Site</th><th class="num">Predicted t/ha</th><th class="num">% of average</th><th>Risk</th></tr></thead>
+          <tbody id="crop-rows"></tbody>
+        </table>
+        <p class="note">Rule from the team plan: below 70% of average is High, 70–90% Medium, above 90% Low.</p>
+      </div>
+    </div>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', path='js/app.js') }}?v={{ version('js/app.js') }}"></script>{% endblock %}

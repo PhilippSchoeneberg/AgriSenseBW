@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="AgriSense BW">
+  <!-- "Sorghum Alert" mark: a sorghum head sending out warning waves (doc/5 · Sorghum Alert-html.zip) -->
+  <g fill="none" stroke="#3A86C8" stroke-width="5" stroke-linecap="round">
+    <path d="M69.7 18.7A24 24 0 0 1 69.7 46.3"/>
+    <path d="M77 13.6A33 33 0 0 1 77 51.4"/>
+    <path d="M30.3 46.3A24 24 0 0 1 30.3 18.7"/>
+    <path d="M23 51.4A33 33 0 0 1 23 13.6"/>
+  </g>
+  <path d="M50 57C50 69 49 80 46 92" fill="none" stroke="#1D2B36" stroke-width="5.5" stroke-linecap="round"/>
+  <path d="M48.6 74C57 66 68 65 78 69C69 76 58 78 48.6 74Z" fill="#1D2B36"/>
+  <g fill="#A8641F">
+    <circle cx="50" cy="12" r="4.1"/>
+    <circle cx="45.2" cy="20.2" r="4.1"/><circle cx="54.8" cy="20.2" r="4.1"/>
+    <circle cx="40.4" cy="28.4" r="4.1"/><circle cx="50" cy="28.4" r="4.1"/><circle cx="59.6" cy="28.4" r="4.1"/>
+    <circle cx="40.4" cy="36.6" r="4.1"/><circle cx="50" cy="36.6" r="4.1"/><circle cx="59.6" cy="36.6" r="4.1"/>
+    <circle cx="45.2" cy="44.8" r="4.1"/><circle cx="54.8" cy="44.8" r="4.1"/>
+    <circle cx="50" cy="53" r="4.1"/>
+  </g>
+</svg>
