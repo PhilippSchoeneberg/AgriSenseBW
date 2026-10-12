@@ -1,0 +1,7 @@
+district,type,risk_level,reason,advice_en,advice_tn
+Southern,crop,Medium,"Kanye: predicted yield 0.21 t/ha is 87% of the average (0.23); rainfall 317 mm, NDVI 0.43",,
+Southern,crop,Low,"Moshupa: predicted yield 0.28 t/ha is 119% of the average (0.23); rainfall 416 mm, NDVI 0.43",,
+Southern,crop,Low,"Jwaneng: predicted yield 0.22 t/ha is 93% of the average (0.23); rainfall 338 mm, NDVI 0.44",,
+Southern,crop,Low,"Good Hope: predicted yield 0.26 t/ha is 112% of the average (0.23); rainfall 376 mm, NDVI 0.50",,
+Southern,crop,Medium,"Mabutsane: predicted yield 0.20 t/ha is 84% of the average (0.23); rainfall 333 mm, NDVI 0.41",,
+Southern,crop,Low,"Mmathethe: predicted yield 0.25 t/ha is 108% of the average (0.23); rainfall 382 mm, NDVI 0.46",,
