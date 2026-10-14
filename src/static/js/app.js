@@ -1,6 +1,35 @@
 /* AgriSense BW dashboard: tabs, alerts table, livestock map and crop chart. */
 "use strict";
 
+// ------------------------------------------------------------- language
+// All texts come from data/translations.csv; the server puts them, already in the
+// page's language, into <script id="i18n-data"> (see base.html and src/i18n.py).
+const I18N = JSON.parse(document.getElementById("i18n-data").textContent);
+const LANG = document.documentElement.lang || "en";
+
+// t("alerts.count_many", { n: 5 }) -> "5 alerts, most urgent first." (or the Setswana)
+function t(key, values = {}) {
+  const text = I18N[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (match, name) => (name in values ? values[name] : match));
+}
+
+// An alert's text in the page's language: reason_tn in Setswana, falling back to English.
+const loc = (alert, field) => (LANG !== "en" && alert[`${field}_${LANG}`]) || alert[field];
+
+// The language switch in the top bar remembers the choice in a cookie and reloads.
+for (const button of document.querySelectorAll("[data-lang]")) {
+  button.addEventListener("click", () => {
+    document.cookie = `lang=${button.dataset.lang}; path=/; max-age=31536000; samesite=lax`;
+    const url = new URL(location.href);
+    if (url.searchParams.has("lang")) {   // ?lang= would override the cookie
+      url.searchParams.delete("lang");
+      location.replace(url);
+    } else {
+      location.reload();
+    }
+  });
+}
+
 const FEVER_C = 39.5;
 // "Sorghum Alert" brand colours: primary ink, accent blue, sorghum grain brown.
 const COLORS = {
@@ -8,11 +37,6 @@ const COLORS = {
   muted: "#AEB9C3",
   risk: { High: "#D03B3B", Medium: "#FAB219", Low: "#0CA30C" },  // same as the risk badges
   series: ["#3A86C8", "#A8641F"],  // the animal or site in focus, and its comparison
-};
-const CATEGORY_LABELS = {
-  crop_yield: "Crop yield", possible_illness: "Possible illness", low_activity: "Low activity",
-  unusual_movement: "Unusual movement", possible_theft_or_straying: "Possibly lost or stolen",
-  disease_outbreak: "Disease outbreak", normal: "No alerts",
 };
 
 Chart.defaults.font.family = '"Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif';
@@ -29,12 +53,12 @@ async function api(path, options) {
   return res.json();
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const shortDate = (iso) => `${Number(iso.slice(8, 10))} ${MONTHS[Number(iso.slice(5, 7)) - 1]}`;
+const shortDate = (iso) => `${Number(iso.slice(8, 10))} ${t(`month.${Number(iso.slice(5, 7))}`)}`;
 const fmtDate = (iso) => `${shortDate(iso)} ${iso.slice(0, 4)}`;
 
-function badge(risk) {
-  return `<span class="badge risk-${esc(risk)}">${esc(risk)}</span>`;
+// The coloured risk label; `label` replaces the risk word (used for the collar states).
+function badge(risk, label = t(`risk.${risk}`)) {
+  return `<span class="badge risk-${esc(risk)}">${esc(label)}</span>`;
 }
 
 // ------------------------------------------------------------------ tabs
@@ -70,19 +94,18 @@ const filters = $("#alert-filters");
 let alertRows = [];
 
 function advice(alert) {
-  const lang = filters.elements.lang.value;
-  if (lang === "tn") {
+  if (LANG === "tn") {
     return alert.advice_tn
       ? esc(alert.advice_tn)
-      : `<span class="pending">Setswana translation pending.</span> ${esc(alert.advice_en)}`;
+      : `<span class="pending">${esc(t("advice.pending"))}</span> ${esc(alert.advice_en)}`;
   }
   return esc(alert.advice_en);
 }
 
 function when(alert) {
-  if (alert.type === "crop") return `Season ending<br>${fmtDate(alert.end_date)}`;
+  if (alert.type === "crop") return `${esc(t("alerts.season_ending"))}<br>${fmtDate(alert.end_date)}`;
   if (alert.start_date === alert.end_date) return fmtDate(alert.start_date);
-  return `${fmtDate(alert.start_date)} –<br>${fmtDate(alert.end_date)}<br><small>${alert.days} days</small>`;
+  return `${fmtDate(alert.start_date)} –<br>${fmtDate(alert.end_date)}<br><small>${esc(t("alerts.days", { n: alert.days }))}</small>`;
 }
 
 function renderAlerts() {
@@ -91,24 +114,24 @@ function renderAlerts() {
     <tr class="${a.for_whom !== "Farmers" ? "vets" : ""} ${a.status === "resolved" ? "done" : ""}">
       <td>${badge(a.risk_level)}</td>
       <td>
-        <span class="subject">${esc(a.subject)} · ${esc(CATEGORY_LABELS[a.category] ?? a.category)}</span>
-        ${a.for_whom !== "Farmers" ? `<span class="tag">For ${esc(a.for_whom.toLowerCase())}</span> ` : ""}
-        ${esc(a.reason)}
-        <details><summary>Details</summary>${esc(a.details)}<br><small>ID ${esc(a.alert_id)}</small></details>
+        <span class="subject">${esc(loc(a, "subject"))} · ${esc(t(`cat.${a.category}`))}</span>
+        ${a.for_whom !== "Farmers" ? `<span class="tag">${esc(t("alerts.for", { who: t(`for_whom.${a.for_whom}`) }))}</span> ` : ""}
+        ${esc(loc(a, "reason"))}
+        <details><summary>${esc(t("alerts.details"))}</summary>${esc(loc(a, "details"))}<br><small>ID ${esc(a.alert_id)}</small></details>
       </td>
       <td>${advice(a)}</td>
       <td>${when(a)}</td>
       <td>
         <select class="status-select" id="status-${esc(a.alert_id)}" data-id="${esc(a.alert_id)}"
-                aria-label="Status of ${esc(a.subject)}">
+                aria-label="${esc(t("alerts.status_of", { subject: loc(a, "subject") }))}">
           ${["open", "acknowledged", "resolved"].map((s) =>
-            `<option value="${s}"${s === a.status ? " selected" : ""}>${s[0].toUpperCase() + s.slice(1)}</option>`).join("")}
+            `<option value="${s}"${s === a.status ? " selected" : ""}>${esc(t(`status.${s}`))}</option>`).join("")}
         </select>
       </td>
     </tr>`).join("");
   const n = alertRows.length;
-  $("#alert-count").textContent = n ? `${n} alert${n === 1 ? "" : "s"}, most urgent first.`
-    : "No alerts match these filters.";
+  $("#alert-count").textContent = n === 0 ? t("alerts.none")
+    : n === 1 ? t("alerts.count_one") : t("alerts.count_many", { n });
 }
 
 async function loadAlerts() {
@@ -129,9 +152,7 @@ async function refreshTiles() {
   }
 }
 
-filters.addEventListener("change", (e) => {
-  if (e.target.name === "lang") renderAlerts(); else loadAlerts();
-});
+filters.addEventListener("change", loadAlerts);
 
 $("#alert-rows").addEventListener("change", async (e) => {
   const select = e.target.closest(".status-select");
@@ -145,7 +166,7 @@ $("#alert-rows").addEventListener("change", async (e) => {
     });
     await Promise.all([loadAlerts(), refreshTiles()]);
   } catch (err) {
-    alert(`The status could not be saved: ${err.message}`);
+    alert(t("alerts.save_failed", { error: err.message }));
     select.disabled = false;
   }
 });
@@ -169,7 +190,7 @@ const ShowAllControl = L.Control.extend({
   options: { position: "topright" },
   onAdd() {
     const box = L.DomUtil.create("div", "leaflet-bar show-all");
-    box.innerHTML = '<button type="button">Show all animals</button>';
+    box.innerHTML = `<button type="button">${esc(t("livestock.show_all"))}</button>`;
     L.DomEvent.disableClickPropagation(box);
     box.querySelector("button").addEventListener("click", showAllAnimals);
     return box;
@@ -180,7 +201,7 @@ function allAnimalsBounds() {
   return L.latLngBounds(positions.animals.map((a) => [a.lat, a.lon]));
 }
 
-const NO_ANIMAL = '<p class="hint">Choose an animal on the map or in the list.</p>';
+const NO_ANIMAL = `<p class="hint">${esc(t("livestock.choose"))}</p>`;
 
 // "Show all animals": zoom out and deselect, back to the start view.
 function showAllAnimals() {
@@ -300,7 +321,8 @@ function renderMap() {
   markers.clear();
   for (const a of visible) {
     const risk = riskOf(a);
-    const marker = L.marker([a.lat, a.lon], { icon: dotIcon(risk), title: `${a.animal_id} (herd ${a.herd_id}, ${risk} risk)`,
+    const title = t("livestock.dot_title", { animal: a.animal_id, herd: a.herd_id, risk: t(`risk.${risk}`) });
+    const marker = L.marker([a.lat, a.lon], { icon: dotIcon(risk), title,
                                               zIndexOffset: DOT_LAYER[risk] })
       .on("click", () => toggleAnimal(a.animal_id));
     if (risk === "High") {
@@ -329,14 +351,15 @@ function renderChips(animals) {
     risk, animals: animals.filter((a) => riskOf(a) === risk).sort((x, y) => x.animal_id.localeCompare(y.animal_id)),
   })).filter((g) => g.animals.length);
   $("#flagged-list").innerHTML = groups.length ? groups.map((g) => `
-    <h3 class="chip-group">${badge(g.risk)} <span>${g.animals.length} animal${g.animals.length === 1 ? "" : "s"}</span></h3>
+    <h3 class="chip-group">${badge(g.risk)} <span>${esc(g.animals.length === 1 ? t("livestock.animals_one")
+      : t("livestock.animals_many", { n: g.animals.length }))}</span></h3>
     <div class="chips">${g.animals.map((a) => `
       <button type="button" class="chip" data-animal="${esc(a.animal_id)}"
               aria-pressed="${a.animal_id === selectedAnimal}">
         <span class="dot ${esc(g.risk)}" aria-hidden="true"></span>${esc(a.animal_id)}
-        <span class="visually-hidden">(${esc(g.risk)})</span>
+        <span class="visually-hidden">(${esc(t(`risk.${g.risk}`))})</span>
       </button>`).join("")}</div>`).join("")
-    : '<p class="hint">No animals shown. Select at least one risk level above the map.</p>';
+    : `<p class="hint">${esc(t("livestock.none_shown"))}</p>`;
 }
 
 $("#flagged-list").addEventListener("click", (e) => {
@@ -370,17 +393,17 @@ async function showAnimal(id) {
   if (selectedAnimal !== id) return;  // deselected or another animal chosen meanwhile
   const today = a.days.find((d) => d.date === daySelect.value) ?? a.days.at(-1);
   $("#animal-detail").innerHTML = `
-    <h2>${esc(a.animal_id)} <small>herd ${esc(a.herd_id)}</small></h2>
+    <h2>${esc(a.animal_id)} <small>${esc(t("livestock.herd", { herd: a.herd_id }))}</small></h2>
     <div class="animal-facts">
-      <div><span>Body temperature, ${fmtDate(today.date)}</span><strong>${today.body_temp_c.toFixed(1)} °C</strong></div>
-      <div><span>Activity (rest of herd)</span><strong>${today.activity_level.toFixed(0)}</strong> (${today.herd_activity.toFixed(0)})</div>
+      <div><span>${esc(t("livestock.body_temp_on", { date: fmtDate(today.date) }))}</span><strong>${today.body_temp_c.toFixed(1)} °C</strong></div>
+      <div><span>${esc(t("livestock.activity_vs_herd"))}</span><strong>${today.activity_level.toFixed(0)}</strong> (${today.herd_activity.toFixed(0)})</div>
     </div>
-    <p class="chart-title">Body temperature, °C</p>
-    <div class="small-chart"><canvas id="temp-chart" aria-label="Body temperature per day"></canvas></div>
-    <p class="chart-title">Activity compared with the rest of the herd</p>
-    <div class="small-chart"><canvas id="activity-chart" aria-label="Activity per day"></canvas></div>
+    <p class="chart-title">${esc(t("livestock.chart_temp"))}</p>
+    <div class="small-chart"><canvas id="temp-chart" aria-label="${esc(t("livestock.chart_temp_aria"))}"></canvas></div>
+    <p class="chart-title">${esc(t("livestock.chart_activity"))}</p>
+    <div class="small-chart"><canvas id="activity-chart" aria-label="${esc(t("livestock.chart_activity_aria"))}"></canvas></div>
     <ul class="animal-alerts">${a.alerts.map((al) =>
-      `<li>${badge(al.risk_level)} ${esc(al.reason)}</li>`).join("") || `<li>${badge("Low")} No alerts for this animal.</li>`}</ul>`;
+      `<li>${badge(al.risk_level)} ${esc(loc(al, "reason"))}</li>`).join("") || `<li>${badge("Low")} ${esc(t("livestock.no_alerts"))}</li>`}</ul>`;
 
   tempChart?.destroy();
   activityChart?.destroy();
@@ -388,15 +411,15 @@ async function showAnimal(id) {
   tempChart = lineChart($("#temp-chart"), [
     { label: a.animal_id, data: a.days.map((d, i) => ({ x: labels[i], y: d.body_temp_c })),
       borderColor: COLORS.series[0], backgroundColor: COLORS.series[0] },
-    { label: `Fever line ${FEVER_C} °C`, data: labels.map((x) => ({ x, y: FEVER_C })),
+    { label: t("livestock.fever_line", { fever: FEVER_C }), data: labels.map((x) => ({ x, y: FEVER_C })),
       borderColor: COLORS.high, backgroundColor: COLORS.high, borderDash: [6, 4], borderWidth: 2 },
   ], "°C", { y: { suggestedMin: 37.5, suggestedMax: 41 } });
   activityChart = lineChart($("#activity-chart"), [
     { label: a.animal_id, data: a.days.map((d, i) => ({ x: labels[i], y: d.activity_level })),
       borderColor: COLORS.series[0], backgroundColor: COLORS.series[0] },
-    { label: "Rest of herd (average)", data: a.days.map((d, i) => ({ x: labels[i], y: d.herd_activity })),
+    { label: t("livestock.rest_of_herd"), data: a.days.map((d, i) => ({ x: labels[i], y: d.herd_activity })),
       borderColor: COLORS.series[1], backgroundColor: COLORS.series[1] },
-  ], "Activity", { y: { beginAtZero: true } });
+  ], t("livestock.activity"), { y: { beginAtZero: true } });
 }
 
 // ----------------------------------------------------------------- crops
@@ -428,16 +451,16 @@ async function initCrops() {
   const datasets = [
     // Legend entries only: the highlighted site, the other sites and the average.
     { label: "", data: [], borderColor: COLORS.series[0], backgroundColor: COLORS.series[0] },
-    { label: "Other sites", data: [], borderColor: COLORS.muted, backgroundColor: COLORS.muted },
+    { label: t("crops.other_sites"), data: [], borderColor: COLORS.muted, backgroundColor: COLORS.muted },
     ...c.sites.map((site) => ({
       site, label: site,
       data: c.seasons.filter((s) => s.location === site).map((s) => ({ x: s.date.slice(0, 4), y: s.yield_t_ha })),
     })),
-    { label: `District average ${c.regional_average_t_ha.toFixed(2)} t/ha`, order: 1,
+    { label: t("crops.district_average", { avg: c.regional_average_t_ha.toFixed(2) }), order: 1,
       data: years.map((x) => ({ x, y: c.regional_average_t_ha })),
       borderColor: COLORS.ink, backgroundColor: COLORS.ink, borderDash: [6, 4] },
   ];
-  cropChart = lineChart($("#yield-chart"), datasets, "Yield, t/ha", { y: { beginAtZero: true } });
+  cropChart = lineChart($("#yield-chart"), datasets, t("crops.yield_axis"), { y: { beginAtZero: true } });
   cropChart.options.scales.x.ticks.maxTicksLimit = 12;
   cropChart.options.plugins.legend.labels.filter = (item, data) => !data.datasets[item.datasetIndex].site;
   cropChart.options.plugins.tooltip = {
@@ -479,33 +502,30 @@ function stopSensors() {
   sensorTimer = null;
 }
 
-function ago(seconds) {
-  if (seconds < 60) return `${seconds} s ago`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)} min ago`;
-  return `${Math.round(seconds / 3600)} h ago`;
+function duration(seconds) {
+  if (seconds < 60) return t("time.s", { n: seconds });
+  if (seconds < 3600) return t("time.min", { n: Math.round(seconds / 60) });
+  return t("time.h", { n: Math.round(seconds / 3600) });
 }
+const ago = (seconds) => t("time.ago", { time: duration(seconds) });
 
 const localTime = (t) => new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-const COLLAR_STATUS = {
-  high_temperature: { risk: "High", text: "High temperature" },
-  not_seen: { risk: "Medium", text: "Not seen" },
-  ok: { risk: "Low", text: "OK" },
-};
+const COLLAR_RISK = { high_temperature: "High", not_seen: "Medium", ok: "Low" };  // badge colour per state
 
 async function loadSensors() {
   let live;
   try {
     live = await api("/api/sensors/live?minutes=10");
   } catch (err) {
-    $("#sensor-status").textContent = `The dashboard could not load sensor data: ${err.message}`;
+    $("#sensor-status").textContent = t("sensors.load_failed", { error: err.message });
     return;
   }
   const gw = live.gateways[0];
   $("#sensor-status").textContent = !gw
-    ? "No data yet. Start the gateway and check SERVER_URL in firmware/gateway/config.h."
+    ? t("sensors.no_data")
     : gw.seconds_ago > 30
-      ? `Gateway ${gw.gateway_id} has not sent data for ${ago(gw.seconds_ago).replace(" ago", "")}.`
-      : `Gateway ${gw.gateway_id} connected · last data ${ago(gw.seconds_ago)}`;
+      ? t("sensors.gateway_quiet", { id: gw.gateway_id, time: duration(gw.seconds_ago) })
+      : t("sensors.gateway_ok", { id: gw.gateway_id, ago: ago(gw.seconds_ago) });
   renderRain(live.rain);
   renderCollars(live);
 }
@@ -513,21 +533,21 @@ async function loadSensors() {
 function renderRain(rain) {
   const card = $("#rain-card");
   if (!rain) {
-    card.innerHTML = '<h2>Rain sensor</h2><p class="hint">No rain readings yet.</p>';
+    card.innerHTML = `<h2>${esc(t("sensors.rain"))}</h2><p class="hint">${esc(t("sensors.no_rain"))}</p>`;
     return;
   }
   card.innerHTML = `
-    <h2>Rain sensor</h2>
-    <p class="rain-state">${rain.rain_wet ? "Raining" : "Dry"}</p>
+    <h2>${esc(t("sensors.rain"))}</h2>
+    <p class="rain-state">${esc(t(rain.rain_wet ? "sensors.raining" : "sensors.dry"))}</p>
     <div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${rain.rain_level}"
-         aria-label="Wetness of the rain sensor"><span style="width:${rain.rain_level}%"></span></div>
-    <p class="hint">Wetness ${rain.rain_level} % · updated ${ago(rain.seconds_ago)}</p>`;
+         aria-label="${esc(t("sensors.wetness_aria"))}"><span style="width:${rain.rain_level}%"></span></div>
+    <p class="hint">${esc(t("sensors.wetness", { n: rain.rain_level, ago: ago(rain.seconds_ago) }))}</p>`;
 }
 
 function renderCollars(live) {
   const box = $("#collar-cards");
   if (!live.collars.length) {
-    box.innerHTML = '<div class="chart-card"><h2>Collars</h2><p class="hint">No collar heard yet.</p></div>';
+    box.innerHTML = `<div class="chart-card"><h2>${esc(t("sensors.collars"))}</h2><p class="hint">${esc(t("sensors.no_collar"))}</p></div>`;
     sensorCharts.forEach((c) => c.destroy());
     sensorCharts.clear();
     return;
@@ -541,25 +561,24 @@ function renderCollars(live) {
       card.className = "chart-card collar-card";
       card.dataset.collar = c.animal_id;
       card.innerHTML = `
-        <div class="collar-top"><h2>Collar ${esc(c.animal_id)}</h2><span class="collar-badge"></span></div>
+        <div class="collar-top"><h2>${esc(t("sensors.collar", { id: c.animal_id }))}</h2><span class="collar-badge"></span></div>
         <div class="animal-facts">
-          <div><span>Skin temperature</span><strong data-v="temp"></strong></div>
-          <div><span>Air temperature</span><strong data-v="ambient"></strong></div>
-          <div><span>Activity</span><strong data-v="activity"></strong></div>
-          <div><span>Last heard</span><strong data-v="seen"></strong></div>
+          <div><span>${esc(t("sensors.skin_temp"))}</span><strong data-v="temp"></strong></div>
+          <div><span>${esc(t("sensors.air_temp"))}</span><strong data-v="ambient"></strong></div>
+          <div><span>${esc(t("sensors.activity"))}</span><strong data-v="activity"></strong></div>
+          <div><span>${esc(t("sensors.last_heard"))}</span><strong data-v="seen"></strong></div>
         </div>
-        <p class="chart-title">Skin temperature, last 10 minutes</p>
-        <div class="small-chart"><canvas aria-label="Skin temperature of collar ${esc(c.animal_id)}"></canvas></div>
-        <p class="hint no-series" hidden>No readings in the last 10 minutes.</p>`;
+        <p class="chart-title">${esc(t("sensors.chart_title"))}</p>
+        <div class="small-chart"><canvas aria-label="${esc(t("sensors.chart_aria", { id: c.animal_id }))}"></canvas></div>
+        <p class="hint no-series" hidden>${esc(t("sensors.no_series"))}</p>`;
       box.append(card);
     }
-    const st = COLLAR_STATUS[c.status];
-    card.querySelector(".collar-badge").innerHTML = badge(st.risk).replace(`>${st.risk}<`, `>${st.text}<`);
+    card.querySelector(".collar-badge").innerHTML = badge(COLLAR_RISK[c.status], t(`collar.${c.status}`));
     card.classList.toggle("stale", c.status === "not_seen");
     const fmt = (v, unit) => (v === null || v === undefined ? "–" : `${v.toFixed(1)} ${unit}`);
     card.querySelector('[data-v="temp"]').textContent = fmt(c.body_temp_c, "°C");
     card.querySelector('[data-v="ambient"]').textContent = fmt(c.ambient_c, "°C");
-    card.querySelector('[data-v="activity"]').textContent = c.activity ?? "no sensor";
+    card.querySelector('[data-v="activity"]').textContent = c.activity ?? t("sensors.no_sensor");
     card.querySelector('[data-v="seen"]').textContent = ago(c.seconds_ago);
 
     // Time axis = the last 10 minutes up to now, so the newest reading is always on the right.
@@ -572,8 +591,8 @@ function renderCollars(live) {
     let chart = sensorCharts.get(c.animal_id);
     if (!chart) {
       chart = lineChart(card.querySelector("canvas"), [
-        { label: "Skin temperature", data: temps, borderColor: COLORS.series[0], backgroundColor: COLORS.series[0] },
-        { label: `Demo threshold ${live.high_temp_threshold_c} °C`, data: limit,
+        { label: t("sensors.skin_temp"), data: temps, borderColor: COLORS.series[0], backgroundColor: COLORS.series[0] },
+        { label: t("sensors.threshold", { t: live.high_temp_threshold_c }), data: limit,
           borderColor: COLORS.high, backgroundColor: COLORS.high, borderDash: [6, 4] },
       ], "°C", { y: { suggestedMin: 30, suggestedMax: 40 } });
       chart.options.scales.x = { type: "linear", grid: { display: false },

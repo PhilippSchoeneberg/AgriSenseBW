@@ -11,7 +11,9 @@ farmers can understand, and saves it as final_alerts.csv:
   animals in one district are possibly ill within a few days,
 * every animal without any alert gets one Low entry ("no alerts"), so each
   animal has a risk level, like each crop site,
-* advice in English and Setswana comes from advice_templates.csv.
+* advice in English and Setswana comes from advice_templates.csv,
+* every text the engine writes (subject, reason, details) is written in English and
+  Setswana, from the sentence templates in translations.csv (see src/i18n.py).
 
 The outbreak rule counts only the possible-illness flags in livestock_alerts.csv.
 
@@ -25,6 +27,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from .i18n import LANGUAGES, day_label, draft_count, say
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 CROP_ALERTS = DATA / "alerts" / "crop_alerts.csv"
@@ -43,7 +47,10 @@ STRAY_MIN_DAYS = 3        # unusual movement on this many days in a row -> High
 SHARED_COLUMNS = ["district", "type", "risk_level", "reason", "advice_en", "advice_tn"]
 EXTRA_COLUMNS = ["alert_id", "category", "subject", "for_whom",
                  "start_date", "end_date", "days", "details", "lat", "lon"]
-BUILD_COLUMNS = ["district", "type", "risk_level", "reason"] + EXTRA_COLUMNS
+# The same texts in the other languages, e.g. reason_tn (Setswana).
+TRANSLATED = ["subject", "reason", "details"]
+LANG_COLUMNS = [f"{col}_{lang}" for lang in LANGUAGES if lang != "en" for col in TRANSLATED]
+BUILD_COLUMNS = ["district", "type", "risk_level", "reason"] + EXTRA_COLUMNS + LANG_COLUMNS
 RISK_RANK = {"High": 0, "Medium": 1, "Low": 2}
 
 # Reasons used in livestock_alerts.csv, most serious first.
@@ -74,18 +81,30 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return 2 * 6371 * np.arcsin(np.sqrt(np.clip(a, 0, 1)))
 
 
-def day(d: pd.Timestamp) -> str:
-    return f"{d.day} {d:%b %Y}"
+def day(d: pd.Timestamp, lang: str = "en") -> str:
+    """26 Sep 2026 (English) or 26 Lwetse 2026 (Setswana)."""
+    return day_label(d, lang)
 
 
-def span(start: pd.Timestamp, end: pd.Timestamp, days: int) -> str:
+def span(start: pd.Timestamp, end: pd.Timestamp, days: int, lang: str = "en") -> str:
+    """'on 26 Sep 2026' or 'on 5 days in a row (26–30 Sep 2026)', in `lang`."""
     if days == 1:
-        return f"on {day(start)}"
+        return say("when.one", lang, date=day(start, lang))
     if (start.year, start.month) == (end.year, end.month):
-        dates = f"{start.day}–{end.day} {end:%b %Y}"
+        dates = f"{start.day}–{end.day} {say(f'month.{end.month}', lang)} {end.year}"
     else:
-        dates = f"{start.day} {start:%b} – {day(end)}"
-    return f"on {days} days in a row ({dates})"
+        dates = f"{start.day} {say(f'month.{start.month}', lang)} – {day(end, lang)}"
+    return say("when.many", lang, days=days, dates=dates)
+
+
+def texts(column: str, key: str, per_lang=lambda lang: {}, **values) -> dict[str, str]:
+    """One text column in every language: {"reason": "...", "reason_tn": "..."}.
+
+    `values` are the same in every language (numbers); `per_lang(lang)` returns the
+    parts that depend on the language (dates, "Animal H3-05 (herd H3)", ...).
+    """
+    return {column if lang == "en" else f"{column}_{lang}": say(key, lang, **values, **per_lang(lang))
+            for lang in LANGUAGES}
 
 
 def value_range(values: pd.Series, unit: str = "", digits: int = 1) -> str:
@@ -100,20 +119,11 @@ def slug(text: str) -> str:
 
 
 # ------------------------------------------------------------------ crop alerts
-def crop_reason(location: str, pct: int, risk: str) -> str:
-    gap = abs(100 - pct)
-    if risk == "High":
-        return (f"The harvest in {location} is expected to be much smaller than usual, "
-                f"about {gap}% below the district average.")
-    if risk == "Medium":
-        return (f"The harvest in {location} is expected to be about {gap}% smaller "
-                f"than the district average.")
-    if pct > 100:
-        return f"The harvest in {location} is expected to be about {gap}% above the district average."
-    if pct == 100:
-        return f"The harvest in {location} is expected to match the district average."
-    return (f"The harvest in {location} is expected to be close to normal, "
-            f"about {gap}% below the district average.")
+def crop_reason_key(pct: int, risk: str) -> str:
+    """Which reason sentence fits: by risk for High/Medium, by percentage for Low."""
+    if risk in ("High", "Medium"):
+        return f"reason.crop.{risk}"
+    return "reason.crop." + ("above" if pct > 100 else "equal" if pct == 100 else "near")
 
 
 def build_crop_alerts() -> pd.DataFrame:
@@ -145,15 +155,15 @@ def build_crop_alerts() -> pd.DataFrame:
                   f"(the team's rule gives {expected}).")
         rows.append({
             "district": alert["district"], "type": "crop", "risk_level": risk,
-            "reason": crop_reason(loc, pct, risk),
+            **texts("reason", crop_reason_key(pct, risk), location=loc, gap=abs(100 - pct)),
             "alert_id": f"CR-{season:%Y}-{slug(loc)}",
             "category": "crop_yield",
-            "subject": f"Crops in {loc}",
+            **texts("subject", "subject.crop", location=loc),
             "for_whom": "Farmers",
             "start_date": season, "end_date": season, "days": pd.NA,
-            "details": (f"Predicted yield {p['predicted']:.2f} t/ha = {pct}% of the district "
-                        f"average ({p['average']:.2f} t/ha); rainfall {p['rainfall']} mm; "
-                        f"NDVI {p['ndvi']:.2f}; season ending {day(season)}"),
+            **texts("details", "details.crop", lambda lang: {"season": day(season, lang)},
+                    predicted=f"{p['predicted']:.2f}", pct=pct, average=f"{p['average']:.2f}",
+                    rainfall=p["rainfall"], ndvi=f"{p['ndvi']:.2f}"),
             "lat": np.nan, "lon": np.nan,
         })
     return pd.DataFrame(rows, columns=BUILD_COLUMNS)
@@ -211,40 +221,34 @@ def build_livestock_alerts(la: pd.DataFrame, ld: pd.DataFrame) -> pd.DataFrame:
         if category == "unusual_movement" and days >= STRAY_MIN_DAYS:
             category, risk = "possible_theft_or_straying", "High"
 
-        who, when = f"Animal {animal} (herd {herd})", span(start, end, days)
-        herd_activity = ep["herd_activity_level"].mean()
-        herd_distance = ep["herd_distance_km"].mean()
+        # The parts of the texts that depend on the language
+        def per_lang(lang, animal=animal, herd=herd, start=start, end=end, days=days):
+            return {"who": say("subject.animal", lang, animal=animal, herd=herd),
+                    "when": span(start, end, days, lang), "date": day(end, lang)}
+
+        herd_activity = f"{ep['herd_activity_level'].mean():.1f}"
+        herd_distance = f"{ep['herd_distance_km'].mean():.2f}"
+        temps = value_range(ep["body_temp_c"], "°C", 2)
+        activity = value_range(ep["activity_level"])
         if category == "possible_illness":
-            reason = (f"{who} has a high body temperature (up to {ep['body_temp_c'].max():.1f} °C) "
-                      f"and is much less active than its herd {when}.")
-            details = (f"Body temperature {value_range(ep['body_temp_c'], '°C', 2)} "
-                       f"(fever from {FEVER_C} °C); activity {value_range(ep['activity_level'])} "
-                       f"vs. {herd_activity:.1f} for the rest of the herd")
+            values = {"max_temp": f"{ep['body_temp_c'].max():.1f}", "temps": temps, "fever": FEVER_C,
+                      "activity": activity, "herd_activity": herd_activity}
         elif category == "low_activity":
-            reason = f"{who} was much less active than the rest of its herd {when}."
-            details = (f"Activity {value_range(ep['activity_level'])} vs. {herd_activity:.1f} "
-                       f"for the rest of the herd; body temperature "
-                       f"{value_range(ep['body_temp_c'], '°C', 2)}")
+            values = {"activity": activity, "herd_activity": herd_activity, "temps": temps}
         elif category == "unusual_movement":
-            reason = f"{who} moved much further than the rest of its herd {when}."
-            details = (f"Moved {value_range(ep['distance_km'], 'km', 2)} in a day vs. "
-                       f"{herd_distance:.2f} km for the rest of the herd")
+            values = {"distance": value_range(ep["distance_km"], "km", 2), "herd_distance": herd_distance}
         else:  # possible_theft_or_straying
-            reason = (f"{who} has moved away from its herd {when} and is now about "
-                      f"{last['km_from_herd']:.0f} km from it. It may be lost or stolen.")
-            details = (f"Moved {value_range(ep['distance_km'], 'km', 1)} per day vs. "
-                       f"{herd_distance:.2f} km for the rest of the herd; "
-                       f"{last['km_from_herd']:.1f} km from the herd's median position "
-                       f"on {day(end)}")
+            values = {"km": f"{last['km_from_herd']:.0f}", "km_exact": f"{last['km_from_herd']:.1f}",
+                      "distance": value_range(ep["distance_km"], "km", 1), "herd_distance": herd_distance}
         rows.append({
             "district": first["district"], "type": "livestock", "risk_level": risk,
-            "reason": reason,
+            **texts("reason", f"reason.{category}", per_lang, **values),
             "alert_id": f"LS-{start:%Y%m%d}-{animal}-{ANIMAL_CATEGORIES[category]}",
             "category": category,
-            "subject": who,
+            **texts("subject", "subject.animal", animal=animal, herd=herd),
             "for_whom": "Farmers",
             "start_date": start, "end_date": end, "days": days,
-            "details": details,
+            **texts("details", f"details.{category}", per_lang, **values),
             "lat": last["lat"], "lon": last["lon"],
         })
     return pd.DataFrame(rows, columns=BUILD_COLUMNS)
@@ -260,19 +264,25 @@ def build_normal_alerts(la: pd.DataFrame, ld: pd.DataFrame) -> pd.DataFrame:
     for animal, days in ld[~ld["animal_id"].isin(la["animal_id"])].groupby("animal_id"):
         first, last = days.iloc[0], days.iloc[-1]
         start, end = days["date"].min(), days["date"].max()
-        who = f"Animal {animal} (herd {first['herd_id']})"
+        herd = first["herd_id"]
+
+        def per_lang(lang, animal=animal, herd=herd, start=start, end=end):
+            return {"who": say("subject.animal", lang, animal=animal, herd=herd),
+                    "start": day(start, lang), "end": day(end, lang)}
+
         rows.append({
             "district": first["district"], "type": "livestock", "risk_level": "Low",
-            "reason": f"{who} had no alerts from {day(start)} to {day(end)}.",
+            **texts("reason", "reason.normal", per_lang),
             "alert_id": f"LS-{start:%Y%m%d}-{animal}-{NORMAL_CODE}",
             "category": "normal",
-            "subject": who,
+            **texts("subject", "subject.animal", animal=animal, herd=herd),
             "for_whom": "Farmers",
             "start_date": start, "end_date": end, "days": len(days),
-            "details": (f"Body temperature {value_range(days['body_temp_c'], '°C', 2)}; "
-                        f"activity {days['activity_level'].mean():.1f} on average vs. "
-                        f"{days['herd_activity_level'].mean():.1f} for the rest of the herd; "
-                        f"moved {days['distance_km'].mean():.2f} km a day on average"),
+            **texts("details", "details.normal",
+                    temps=value_range(days["body_temp_c"], "°C", 2),
+                    activity=f"{days['activity_level'].mean():.1f}",
+                    herd_activity=f"{days['herd_activity_level'].mean():.1f}",
+                    distance=f"{days['distance_km'].mean():.2f}"),
             "lat": last["lat"], "lon": last["lon"],
         })
     return pd.DataFrame(rows, columns=BUILD_COLUMNS)
@@ -321,27 +331,32 @@ def build_outbreak_alerts(la: pd.DataFrame, ld: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for c in find_outbreaks(possibly_ill(la)):
         animals, herds = sorted(c["animals"]), sorted(c["herds"])
-        herd_text = f"herd {herds[0]}" if len(herds) == 1 else "herds " + ", ".join(herds)
+
+        def herd_text(lang, herds=herds):
+            return (say("herds.one", lang, herd=herds[0]) if len(herds) == 1
+                    else say("herds.many", lang, herds=", ".join(herds)))
+
+        def per_lang(lang, c=c):
+            return {"herds": herd_text(lang), "date": day(c["first_sign"], lang)}
+
         position = ld[(ld["date"] == c["detected"]) & ld["animal_id"].isin(animals)]
         peak = (ld[ld["animal_id"].isin(animals)
                    & ld["date"].between(c["first_sign"], c["until"])]
                 .groupby("animal_id")["body_temp_c"].max())
         rows.append({
             "district": c["district"], "type": "livestock", "risk_level": "High",
-            "reason": (f"Possible disease outbreak: {len(animals)} animals in {herd_text} "
-                       f"({', '.join(animals)}) have shown signs of illness since "
-                       f"{day(c['first_sign'])}."),
+            **texts("reason", "reason.disease_outbreak", per_lang,
+                    count=len(animals), animals=", ".join(animals)),
             "alert_id": f"OB-{c['detected']:%Y%m%d}-{slug(c['district'])}",
             "category": "disease_outbreak",
-            "subject": f"{c['district']} district, {herd_text}",
+            **texts("subject", "subject.outbreak", lambda lang: {"herds": herd_text(lang)},
+                    district=c["district"]),
             "for_whom": "Veterinary services",
             "start_date": c["detected"], "end_date": c["until"],
             "days": (c["until"] - c["detected"]).days + 1,
-            "details": (f"Rule: {OUTBREAK_MIN_ANIMALS} or more possibly ill animals in one "
-                        f"district within {OUTBREAK_WINDOW_DAYS} days, based on the "
-                        "possible-illness flags in livestock_alerts.csv. "
-                        "Highest body temperatures: "
-                        + ", ".join(f"{a} {t:.2f} °C" for a, t in peak.items())),
+            **texts("details", "details.disease_outbreak",
+                    min=OUTBREAK_MIN_ANIMALS, window=OUTBREAK_WINDOW_DAYS,
+                    peaks=", ".join(f"{a} {t:.2f} °C" for a, t in peak.items())),
             "lat": position["lat"].mean(), "lon": position["lon"].mean(),
         })
     return pd.DataFrame(rows, columns=BUILD_COLUMNS)
@@ -415,6 +430,10 @@ def report(out: pd.DataFrame, la: pd.DataFrame) -> None:
         ill = sorted(possibly_ill(la)["animal_id"].unique())
         print(f"  no outbreak: possibly ill animals are {', '.join(ill) or 'none'} "
               f"({len(ill)} < {OUTBREAK_MIN_ANIMALS})")
+    drafts, total = draft_count()
+    if drafts:
+        print(f"Note: {drafts} of {total} Setswana texts in translations.csv are drafts "
+              f"(tn_status is not 'checked'): please have a native speaker check them.")
     templates = pd.read_csv(TEMPLATES, dtype=str).fillna("")
     no_tn = templates[templates["advice_tn"].str.strip() == ""]
     if len(no_tn):
@@ -441,7 +460,7 @@ def main() -> None:
     check(final, crop_in=len(pd.read_csv(CROP_ALERTS)), livestock_in=len(la),
           animals=set(ld["animal_id"]))
 
-    out = final[SHARED_COLUMNS + EXTRA_COLUMNS].copy()
+    out = final[SHARED_COLUMNS + EXTRA_COLUMNS + LANG_COLUMNS].copy()
     for col in ["start_date", "end_date"]:
         out[col] = pd.to_datetime(out[col]).dt.strftime("%Y-%m-%d")
     out["days"] = out["days"].astype("Int64")

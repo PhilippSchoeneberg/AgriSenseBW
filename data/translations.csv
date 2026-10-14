@@ -1,0 +1,168 @@
+key,en,tn,tn_status
+month.1,Jan,Ferikgong,draft
+month.2,Feb,Tlhakole,draft
+month.3,Mar,Mopitlwe,draft
+month.4,Apr,Moranang,draft
+month.5,May,Motsheganong,draft
+month.6,Jun,Seetebosigo,draft
+month.7,Jul,Phukwi,draft
+month.8,Aug,Phatwe,draft
+month.9,Sep,Lwetse,draft
+month.10,Oct,Diphalane,draft
+month.11,Nov,Ngwanatsele,draft
+month.12,Dec,Sedimonthole,draft
+weekday.0,Mon,Mosupologo,draft
+weekday.1,Tue,Labobedi,draft
+weekday.2,Wed,Laboraro,draft
+weekday.3,Thu,Labone,draft
+weekday.4,Fri,Labotlhano,draft
+weekday.5,Sat,Lamatlhatso,draft
+weekday.6,Sun,Sontaga,draft
+when.one,on {date},ka {date},draft
+when.many,on {days} days in a row ({dates}),ka malatsi a le {days} a a latelanang ({dates}),draft
+subject.animal,Animal {animal} (herd {herd}),Phologolo {animal} (letsomane {herd}),draft
+subject.crop,Crops in {location},Dijalo kwa {location},draft
+subject.outbreak,"{district} district, {herds}","Kgaolo ya {district}, {herds}",draft
+herds.one,herd {herd},letsomane {herd},draft
+herds.many,herds {herds},matsomane {herds},draft
+reason.crop.High,"The harvest in {location} is expected to be much smaller than usual, about {gap}% below the district average.","Thobo kwa {location} e solofelwa go nna nnye thata go feta ka tlwaelo, e ka nna {gap}% ka fa tlase ga palogare ya kgaolo.",draft
+reason.crop.Medium,The harvest in {location} is expected to be about {gap}% smaller than the district average.,Thobo kwa {location} e solofelwa go nna nnye ka {gap}% go feta palogare ya kgaolo.,draft
+reason.crop.above,The harvest in {location} is expected to be about {gap}% above the district average.,Thobo kwa {location} e solofelwa go feta palogare ya kgaolo ka {gap}%.,draft
+reason.crop.equal,The harvest in {location} is expected to match the district average.,Thobo kwa {location} e solofelwa go lekana le palogare ya kgaolo.,draft
+reason.crop.near,"The harvest in {location} is expected to be close to normal, about {gap}% below the district average.","Thobo kwa {location} e solofelwa go nna gaufi le tlwaelo, e ka nna {gap}% ka fa tlase ga palogare ya kgaolo.",draft
+details.crop,Predicted yield {predicted} t/ha = {pct}% of the district average ({average} t/ha); rainfall {rainfall} mm; NDVI {ndvi}; season ending {season},Thobo e e solofetsweng {predicted} t/ha = {pct}% ya palogare ya kgaolo ({average} t/ha); pula {rainfall} mm; NDVI {ndvi}; setlha se fela ka {season},draft
+reason.possible_illness,{who} has a high body temperature (up to {max_temp} °C) and is much less active than its herd {when}.,{who} e na le mogote o o kwa godimo (go fitlha {max_temp} °C) e bile ga e tshikinyege jaaka letsomane la yone {when}.,draft
+details.possible_illness,Body temperature {temps} (fever from {fever} °C); activity {activity} vs. {herd_activity} for the rest of the herd,Mogote wa mmele {temps} (letshoroma go simolola ka {fever} °C); go tshikinyega {activity} go bapisiwa le {herd_activity} ya letsomane lotlhe,draft
+reason.low_activity,{who} was much less active than the rest of its herd {when}.,{who} e ne e sa tshikinyege thata go feta letsomane la yone {when}.,draft
+details.low_activity,Activity {activity} vs. {herd_activity} for the rest of the herd; body temperature {temps},Go tshikinyega {activity} go bapisiwa le {herd_activity} ya letsomane lotlhe; mogote wa mmele {temps},draft
+reason.unusual_movement,{who} moved much further than the rest of its herd {when}.,{who} e tsamaile kgakala thata go feta letsomane la yone {when}.,draft
+details.unusual_movement,Moved {distance} in a day vs. {herd_distance} km for the rest of the herd,E tsamaile {distance} ka letsatsi go bapisiwa le {herd_distance} km ya letsomane lotlhe,draft
+reason.possible_theft_or_straying,{who} has moved away from its herd {when} and is now about {km} km from it. It may be lost or stolen.,{who} e tlogile mo letsomaneng la yone {when} mme jaanong e kgakala ka {km} km. E ka tswa e latlhegile kgotsa e utswitswe.,draft
+details.possible_theft_or_straying,Moved {distance} per day vs. {herd_distance} km for the rest of the herd; {km_exact} km from the herd's median position on {date},E tsamaile {distance} ka letsatsi go bapisiwa le {herd_distance} km ya letsomane lotlhe; {km_exact} km go tswa fa letsomane le leng teng ka {date},draft
+reason.normal,{who} had no alerts from {start} to {end}.,{who} ga e a nna le ditemoso go tloga ka {start} go fitlha ka {end}.,draft
+details.normal,Body temperature {temps}; activity {activity} on average vs. {herd_activity} for the rest of the herd; moved {distance} km a day on average,Mogote wa mmele {temps}; go tshikinyega {activity} ka palogare go bapisiwa le {herd_activity} ya letsomane lotlhe; e tsamaile {distance} km ka letsatsi ka palogare,draft
+reason.disease_outbreak,Possible disease outbreak: {count} animals in {herds} ({animals}) have shown signs of illness since {date}.,Go ka tswa go na le go anama ga bolwetse: diphologolo di le {count} mo {herds} ({animals}) di bontshitse matshwao a bolwetse go tloga ka {date}.,draft
+details.disease_outbreak,"Rule: {min} or more possibly ill animals in one district within {window} days, based on the possible-illness flags in livestock_alerts.csv. Highest body temperatures: {peaks}","Molao: diphologolo di le {min} kgotsa go feta tse di ka tswang di lwala mo kgaolong e le nngwe mo malatsing a le {window}, go ya ka ditshupo tsa bolwetse mo livestock_alerts.csv. Mogote o o kwa godimo go gaisa: {peaks}",draft
+site.home,"AgriSense BW, home","AgriSense BW, tsebe ya ntlha",draft
+nav.label,Dashboard sections,Dikarolo tsa dashboard,draft
+tab.crops,Crops,Dijalo,draft
+tab.livestock,Livestock,Leruo,draft
+tab.alerts,Alerts,Ditemoso,draft
+tab.sensors,Sensors,Disensara,draft
+pill.sample,Sample data,Data ya sekai,draft
+pill.sample_title,"Crop and livestock readings are simulated, not real farm data","Dipalo tsa dijalo le leruo ke tsa sekai, ga se tsa masimo a mmatota",draft
+lang.label,Language,Puo,draft
+lang.draft,"Setswana: draft translation, still being checked","Setswana: phetolelo ya ntlha, e santse e tlhatlhobiwa",draft
+overview.label,Overview,Kakaretso,draft
+overview.lede,Early warnings for crops and livestock · {district} district,Ditemoso tsa pele tsa dijalo le leruo · kgaolo ya {district},draft
+tile.open,open,di bulegile,draft
+tile.crop_sites,Crop sites at risk,Mafelo a dijalo a a mo kotsing,draft
+tile.animals,Animals with alerts,Diphologolo tse di nang le ditemoso,draft
+tile.outbreaks,Outbreak warnings,Ditemoso tsa go anama ga bolwetse,draft
+tile.of,of {total},mo go {total},draft
+risk.High,High,Kwa godimo,draft
+risk.Medium,Medium,Magareng,draft
+risk.Low,Low,Kwa tlase,draft
+status.open,Open,E bulegile,draft
+status.acknowledged,Acknowledged,E amogetswe,draft
+status.resolved,Resolved,E rarabolotswe,draft
+type.crop,Crop,Dijalo,draft
+type.livestock,Livestock,Leruo,draft
+for_whom.Farmers,farmers,balemi,draft
+for_whom.Veterinary services,veterinary services,ditirelo tsa bongaka jwa diphologolo,draft
+cat.crop_yield,Crop yield,Thobo ya dijalo,draft
+cat.possible_illness,Possible illness,E ka tswa e lwala,draft
+cat.low_activity,Low activity,Go sa tshikinyege thata,draft
+cat.unusual_movement,Unusual movement,Go tsamaya mo go sa tlwaelegang,draft
+cat.possible_theft_or_straying,Possibly lost or stolen,E ka tswa e latlhegile kgotsa e utswitswe,draft
+cat.disease_outbreak,Disease outbreak,Go anama ga bolwetse,draft
+cat.normal,No alerts,Ga go na ditemoso,draft
+time.s,{n} s,metsotswana e le {n},draft
+time.min,{n} min,metsotso e le {n},draft
+time.h,{n} h,diura di le {n},draft
+time.ago,{time} ago,{time} e e fetileng,draft
+filter.type,Type,Mofuta,draft
+filter.risk,Risk,Kotsi,draft
+filter.status,Status,Seemo,draft
+filter.all,All,Tsotlhe,draft
+alerts.missing_setswana,{n} advice texts still need a Setswana translation; they are shown in English until then.,Dikgakololo di le {n} di santse di tlhoka phetolelo ya Setswana; di bontshiwa ka Sekgoa go fitlha ka nako eo.,draft
+th.risk,Risk,Kotsi,draft
+th.what,What and why,Se se diragetseng le lebaka,draft
+th.advice,Advice,Kgakololo,draft
+th.when,When,Leng,draft
+th.status,Status,Seemo,draft
+alerts.count_one,"1 alert, most urgent first.","Temoso e le 1, e e potlakang go gaisa pele.",draft
+alerts.count_many,"{n} alerts, most urgent first.","Ditemoso di le {n}, tse di potlakang go gaisa pele.",draft
+alerts.none,No alerts match these filters.,Ga go na ditemoso tse di tsamaisanang le ditlhopho tseno.,draft
+alerts.details,Details,Dintlha,draft
+alerts.for,For {who},E lebisitswe go {who},draft
+alerts.status_of,Status of {subject},Seemo sa {subject},draft
+alerts.season_ending,Season ending,Setlha se fela ka,draft
+alerts.days,{n} days,malatsi a le {n},draft
+alerts.save_failed,The status could not be saved: {error},Seemo ga se a kgona go bolokwa: {error},draft
+advice.pending,Setswana translation pending.,Phetolelo ya Setswana e santse e letilwe.,draft
+livestock.show,Show animals with risk,Bontsha diphologolo tse di nang le kotsi,draft
+livestock.day,Day,Letsatsi,draft
+livestock.legend,Map legend,Tlhaloso ya mmapa,draft
+livestock.legend_dots,"Dots show where each animal was on the chosen day, coloured by its risk level.","Dikhutlo di bontsha kwa phologolo nngwe le nngwe e neng e le teng ka letsatsi le le tlhophilweng, ka mmala wa kotsi ya yone.",draft
+livestock.legend_path,Path of a straying animal,Tsela ya phologolo e e timetseng,draft
+livestock.map,Map of animal positions,Mmapa wa mafelo a diphologolo,draft
+livestock.map_note,"Map tiles need internet. Without it, the animals still show on a blank background.","Mmapa o tlhoka inthanete. Fa e seyo, diphologolo di santse di bonala mo bokamorago jo bo se nang sepe.",draft
+livestock.by_risk,Animals by risk,Diphologolo ka kotsi,draft
+livestock.choose,Choose an animal on the map or in the list.,Tlhopha phologolo mo mmapeng kgotsa mo lenaneong.,draft
+livestock.show_all,Show all animals,Bontsha diphologolo tsotlhe,draft
+livestock.dot_title,"{animal} (herd {herd}, {risk} risk)","{animal} (letsomane {herd}, kotsi: {risk})",draft
+livestock.animals_one,1 animal,phologolo e le 1,draft
+livestock.animals_many,{n} animals,diphologolo di le {n},draft
+livestock.none_shown,No animals shown. Select at least one risk level above the map.,Ga go na diphologolo tse di bontshiwang. Tlhopha bonnye kotsi e le nngwe fa godimo ga mmapa.,draft
+livestock.herd,herd {herd},letsomane {herd},draft
+livestock.body_temp_on,"Body temperature, {date}","Mogote wa mmele, {date}",draft
+livestock.activity_vs_herd,Activity (rest of herd),Go tshikinyega (letsomane lotlhe),draft
+livestock.chart_temp,"Body temperature, °C","Mogote wa mmele, °C",draft
+livestock.chart_temp_aria,Body temperature per day,Mogote wa mmele ka letsatsi,draft
+livestock.chart_activity,Activity compared with the rest of the herd,Go tshikinyega go bapisiwa le letsomane lotlhe,draft
+livestock.chart_activity_aria,Activity per day,Go tshikinyega ka letsatsi,draft
+livestock.fever_line,Fever line {fever} °C,Mola wa letshoroma {fever} °C,draft
+livestock.rest_of_herd,Rest of herd (average),Letsomane lotlhe (palogare),draft
+livestock.activity,Activity,Go tshikinyega,draft
+livestock.no_alerts,No alerts for this animal.,Ga go na ditemoso tsa phologolo eno.,draft
+crops.chart_title,Yield per season and site,Thobo ka setlha le lefelo,draft
+crops.chart_note,"Tonnes per hectare, seasons 2001–2024. The dashed line is the district average used by the crop model.","Ditone ka hekethara, ditlha 2001–2024. Mola o o kgaoganeng ke palogare ya kgaolo e e dirisiwang ke sekao sa dijalo.",draft
+crops.highlight,Highlight a site,Gatelela lefelo,draft
+crops.chart_aria,Line chart of yield per site and season,Kerafo ya thobo ka lefelo le setlha,draft
+crops.forecast,2024 harvest forecast,Tebelelo ya thobo ya 2024,draft
+crops.site,Site,Lefelo,draft
+crops.predicted,Predicted t/ha,E e solofetsweng t/ha,draft
+crops.pct,% of average,% ya palogare,draft
+crops.rule,"Rule from the team plan: below 70% of average is High, 70–90% Medium, above 90% Low.","Molao go tswa mo leanong la setlhopha: ka fa tlase ga 70% ya palogare ke Kwa godimo, 70–90% ke Magareng, go feta 90% ke Kwa tlase.",draft
+crops.other_sites,Other sites,Mafelo a mangwe,draft
+crops.district_average,District average {avg} t/ha,Palogare ya kgaolo {avg} t/ha,draft
+crops.yield_axis,"Yield, t/ha","Thobo, t/ha",draft
+sensors.title,Live from the hardware prototype,Ka nako eo go tswa mo sekaong sa didirisiwa,draft
+sensors.waiting,Waiting for data…,Go letilwe data…,draft
+sensors.note,"Collars measure skin temperature with an infrared sensor (GY-906), which reads lower than body temperature. The {threshold} °C line is a demo threshold, not a veterinary fever limit. A collar the gateway has not heard for a minute is shown as ""not seen"", the way a missing animal at the kraal would be.","Dikolara di lekanya mogote wa letlalo ka sensara ya infrared (GY-906), e e balang kwa tlase go feta mogote wa mmele. Mola wa {threshold} °C ke moedi wa pontsho, ga se moedi wa letshoroma wa bongaka. Kolara e gateway e sa e utlwang mo motsotsong o le mongwe e bontshiwa e le ""ga e bonwe"", fela jaaka phologolo e e seyong mo sakeng.",draft
+sensors.load_failed,The dashboard could not load sensor data: {error},Dashboard ga e a kgona go bula data ya disensara: {error},draft
+sensors.no_data,No data yet. Start the gateway and check SERVER_URL in firmware/gateway/config.h.,Ga go ise go nne le data. Simolola gateway mme o tlhatlhobe SERVER_URL mo firmware/gateway/config.h.,draft
+sensors.gateway_quiet,Gateway {id} has not sent data for {time}.,Gateway {id} ga e a romela data mo {time}.,draft
+sensors.gateway_ok,Gateway {id} connected · last data {ago},Gateway {id} e kopane · data ya bofelo {ago},draft
+sensors.rain,Rain sensor,Sensara ya pula,draft
+sensors.no_rain,No rain readings yet.,Ga go ise go nne le dipalo tsa pula.,draft
+sensors.raining,Raining,Pula e a na,draft
+sensors.dry,Dry,Go omile,draft
+sensors.wetness,Wetness {n} % · updated {ago},Bongola {n} % · e ntšhafaditswe {ago},draft
+sensors.wetness_aria,Wetness of the rain sensor,Bongola jwa sensara ya pula,draft
+sensors.collars,Collars,Dikolara,draft
+sensors.no_collar,No collar heard yet.,Ga go ise go utlwiwe kolara epe.,draft
+sensors.collar,Collar {id},Kolara {id},draft
+sensors.skin_temp,Skin temperature,Mogote wa letlalo,draft
+sensors.air_temp,Air temperature,Mogote wa phefo,draft
+sensors.activity,Activity,Go tshikinyega,draft
+sensors.last_heard,Last heard,E utlwilwe la bofelo,draft
+sensors.no_sensor,no sensor,ga go na sensara,draft
+sensors.chart_title,"Skin temperature, last 10 minutes","Mogote wa letlalo, metsotso e le 10 e e fetileng",draft
+sensors.chart_aria,Skin temperature of collar {id},Mogote wa letlalo wa kolara {id},draft
+sensors.no_series,No readings in the last 10 minutes.,Ga go na dipalo mo metsotsong e le 10 e e fetileng.,draft
+sensors.threshold,Demo threshold {t} °C,Moedi wa pontsho {t} °C,draft
+collar.high_temperature,High temperature,Mogote o kwa godimo,draft
+collar.not_seen,Not seen,Ga e bonwe,draft
+collar.ok,OK,Go siame,draft

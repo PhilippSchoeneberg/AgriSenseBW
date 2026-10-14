@@ -7,7 +7,7 @@ AgriSense BW is an AI-powered smart agriculture platform that empowers farmers w
 |---------------------|------------------------------------------------------------------------------------------------------------------|
 | `data/input/`       | Input data: `crop_data.csv`, `livestock_data.csv`, `public_reference_yields.csv`                                 |
 | `data/alerts/`      | Alerts from the crop and livestock models, and the combined `final_alerts.csv`                                   |
-| `data/`             | `advice_templates.csv` (English and Setswana advice), and the generated `agrisense.db`                           |
+| `data/`             | `advice_templates.csv` (advice) and `translations.csv` (all other texts) in English and Setswana; the generated `agrisense.db` |
 | `models/livestock/` | Livestock monitoring notebook and chart                                                                          |
 | `src/`              | Early-warning engine, database builder and the FastAPI dashboard (`main.py`, `data.py`, `templates/`, `static/`) |
 | `firmware/`         | Hardware prototype: collar node (XIAO nRF52840), gateway (ESP32) and a simulator, see `firmware/README.md`        |

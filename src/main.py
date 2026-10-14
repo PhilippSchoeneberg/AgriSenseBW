@@ -6,6 +6,10 @@ then open http://127.0.0.1:8000 (API documentation at /docs).
 
 For the hardware prototype the gateway must reach the laptop over Wi-Fi, so listen on
 all network interfaces:  uvicorn src.main:app --host 0.0.0.0 --reload
+
+Language: the page is shown in English or Setswana, chosen with the switch in the top
+bar (stored in the cookie "lang") or with a link like http://127.0.0.1:8000/?lang=tn.
+All texts come from data/translations.csv (see src/i18n.py).
 """
 from __future__ import annotations
 
@@ -21,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from . import data
+from . import data, i18n
 
 HERE = Path(__file__).resolve().parent
 AlertType = Literal["crop", "livestock"]
@@ -37,13 +41,6 @@ app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 
 
-def nice_date(iso: str) -> str:
-    """2026-09-30 -> Wed 30 Sep 2026"""
-    d = dt.date.fromisoformat(iso)
-    return f"{d:%a} {d.day} {d:%b %Y}"
-
-
-templates.env.filters["nice_date"] = nice_date
 # ?v=<last change> on our own CSS/JS links, so browsers never run an outdated cached copy.
 templates.env.globals["version"] = lambda path: int((HERE / "static" / path).stat().st_mtime)
 
@@ -81,11 +78,20 @@ SENSOR_KEY = os.environ.get("AGRISENSE_SENSOR_KEY", "")
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def index(request: Request):
+def index(request: Request, lang: str | None = None):
+    """The dashboard page, in the language from ?lang=, the "lang" cookie, or English."""
+    lang = i18n.language(lang or request.cookies.get("lang"))
+    drafts, _ = i18n.draft_count()
     return templates.TemplateResponse(request, "index.html", {
         "summary": data.summary(),
         "dates": data.livestock_dates(),
         "live_high_temp_c": data.LIVE_HIGH_TEMP_C,
+        "lang": lang,
+        "languages": i18n.LANGUAGES,
+        "strings": i18n.texts(lang),   # every text, also handed to app.js
+        "t": lambda key, **values: i18n.say(key, lang, **values),
+        "day_label": lambda iso: i18n.day_label(dt.date.fromisoformat(iso), lang, weekday=True),
+        "tn_drafts": lang == "tn" and drafts > 0,
     })
 
 

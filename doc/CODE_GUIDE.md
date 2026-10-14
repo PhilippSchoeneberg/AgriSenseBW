@@ -271,11 +271,13 @@ AgriSenseBW/
 │   │   ├── livestock_alerts.csv   Abel's livestock model output
 │   │   └── final_alerts.csv       the engine's combined output
 │   ├── advice_templates.csv   advice texts in English and Setswana
+│   ├── translations.csv       every other text of the site and the alerts, in English and Setswana
 │   └── agrisense.db           the database (generated, not in git)
 ├── models/livestock/          Abel's notebook and chart
 ├── src/                       all Python code and the dashboard
 │   ├── __init__.py            marks src/ as a package
 │   ├── alert_engine.py        PART 1: the early-warning engine
+│   ├── i18n.py                reads translations.csv (used by the engine and the dashboard)
 │   ├── build_database.py      PART 2: builds the database
 │   ├── data.py                PART 3: the only file that reads/writes the database
 │   ├── main.py                PART 3: the web server and API (FastAPI)
@@ -393,8 +395,38 @@ translate them without touching Python.
 | `details` | the technical numbers behind the reason | "Moved 5.0–6.1 km per day vs. 0.60 km for the rest of the herd; 29.0 km from the herd's median position on 30 Sep 2026" |
 | `lat`, `lon` | position (last day of the alert) | `-24.706276`, `25.424509` |
 
+At the end come three more columns, **`subject_tn`, `reason_tn` and `details_tn`**: the same
+texts in Setswana (see [4.5](#45-all-other-texts-datatranslationscsv)). For H3-05:
+*"Phologolo H3-05 (letsomane H3) e tlogile mo letsomaneng la yone ka malatsi a le 5 a a
+latelanang (26–30 Lwetse 2026) mme jaanong e kgakala ka 29 km. …"*
+
 The file is saved as **UTF-8 with BOM**, a small invisible marker at the start that tells
 Excel the file uses UTF-8. Without it, Excel shows `°C` as `Â°C`.
+
+### 4.5 All other texts (`data/translations.csv`)
+
+Every text you see on the dashboard (tab names, headings, buttons, messages, chart labels,
+month names, …) and every sentence the engine writes has a **key** and two versions:
+
+```
+key,en,tn,tn_status
+tab.crops,Crops,Dijalo,draft
+sensors.collar,Collar {id},Kolara {id},draft
+reason.low_activity,{who} was much less active than the rest of its herd {when}.,{who} e ne e sa tshikinyege thata go feta letsomane la yone {when}.,draft
+```
+
+- `key`: the name the code uses, e.g. `tab.crops`. The part before the dot groups texts
+  (`tab.`, `alerts.`, `reason.`, …).
+- `en` / `tn`: English and Setswana. Parts in **curly brackets** such as `{id}` or `{who}`
+  are **placeholders**; the code fills them in (`Collar {id}` → `Collar H1-01`). Keep them
+  unchanged when you translate; their order may change.
+- `tn_status`: `draft` until a native speaker has checked the Setswana, then `checked`.
+  While any text is a draft, the site shows "Setswana: draft translation, still being checked"
+  in Setswana mode, and the engine prints a reminder.
+
+If a Setswana text is empty, English is shown instead. The file is read by
+[`src/i18n.py`](../src/i18n.py); the dashboard picks up a change on the next page load, the
+engine on its next run.
 
 ---
 
@@ -417,7 +449,9 @@ The engine turns them into **one list that a farmer can understand**:
 5. every animal without any alert gets one **Low** entry, so each animal has a risk level
    (just as every crop site has one)
 6. advice in English and Setswana is added from the templates
-7. everything is sorted by urgency, checked and saved
+7. every text the engine writes (subject, reason, details) is written in English **and**
+   Setswana, from sentence templates in `translations.csv`
+8. everything is sorted by urgency, checked and saved
 
 ### 5.2 The settings at the top
 
@@ -466,8 +500,9 @@ report(out, la)                         # print a summary
 | Function | What it does | Example |
 |---|---|---|
 | `haversine_km(lat1, lon1, lat2, lon2)` | Distance in km between two GPS points on the Earth's surface. The Earth is a ball (radius 6371 km), so you can't use Pythagoras on latitude and longitude; the *haversine formula* gives the distance along the curved surface. It works on whole columns at once (numpy). | two positions 1 km apart → `1.0` |
-| `day(d)` | Formats a date for people. | `26 Sep 2026` |
-| `span(start, end, days)` | Describes a period in words. | `on 5 days in a row (26–30 Sep 2026)` |
+| `day(d, lang)` | Formats a date for people, in English or Setswana. | `26 Sep 2026` / `26 Lwetse 2026` |
+| `span(start, end, days, lang)` | Describes a period in words. | `on 5 days in a row (26–30 Sep 2026)` |
+| `texts(column, key, per_lang, **values)` | Fills the sentence template `key` from `translations.csv` in every language and returns the columns, e.g. `{"reason": "…", "reason_tn": "…"}` ([5.7](#57-per-animal-alerts-build_livestock_alertsla-ld)). | |
 | `value_range(values, unit, digits)` | Shows the smallest and largest value, or one value if they are equal. | `5.0–6.1 km` |
 | `slug(text)` | Turns text into an ID-friendly form: capital letters, digits and `-`. | `Good Hope` → `GOOD-HOPE` |
 
@@ -621,15 +656,25 @@ for _, ep in la.groupby("episode"):
   days in a row, the episode becomes `possible_theft_or_straying` with risk **High**. One
   unusual day can be chance; several days in a row mean the animal is really leaving.
 
-Then the code writes a `reason` and `details` text depending on the category, for example
-for a possible illness:
+Then the code writes the `subject`, `reason` and `details` texts. They are not written in the
+Python code but come from **sentence templates** in `translations.csv`, for example
 
-```python
-reason = (f"{who} has a high body temperature (up to {ep['body_temp_c'].max():.1f} °C) "
-          f"and is much less active than its herd {when}.")
+```
+reason.possible_illness: {who} has a high body temperature (up to {max_temp} °C) and is much less active than its herd {when}.
 ```
 
-and adds a dictionary with all columns to the list `rows`. The **alert ID** is built as
+The code collects the **values** for the placeholders: numbers that are the same in every
+language (`max_temp`, `temps`, `activity`, …), and, in a small function `per_lang(lang)`,
+the parts that depend on the language (`who` = "Animal H3-05 (herd H3)" or "Phologolo H3-05
+(letsomane H3)", `when` with English or Setswana month names). Then
+
+```python
+**texts("reason", f"reason.{category}", per_lang, **values)
+```
+
+fills the template once per language and returns `{"reason": "…English…", "reason_tn":
+"…Setswana…"}`; the `**` puts both into the row. Finally the row, a dictionary with all
+columns, is added to the list `rows`. The **alert ID** is built as
 `LS-<start date>-<animal>-<code>`, e.g. `LS-20260926-H3-05-STRAY`. Because it is built only
 from the animal, the problem and the start date, **the same alert gets the same ID every
 time you run the engine**. The database relies on this ([6.4](#64-why-statuses-survive-a-rebuild)).
@@ -678,9 +723,11 @@ the alert says 317 mm and 0.43, the data says 316.7 mm and 0.432). That is the 2
 **Checking the rule.** It recomputes the team's rule (below 70 % High, up to 90 % Medium,
 otherwise Low) and prints a note if Thapelo's level is different. Today all six agree.
 
-**Writing the alert.** `crop_reason()` writes a sentence depending on the risk, e.g. for
-Kanye (87 %, Medium): *"The harvest in Kanye is expected to be about 13% smaller than the
-district average."* The ID is `CR-<year>-<site>`, e.g. `CR-2024-KANYE`.
+**Writing the alert.** `crop_reason_key()` picks the sentence template: by risk for High and
+Medium, and for Low by whether the harvest is above, equal to or near the average. For Kanye
+(87 %, Medium) it is `reason.crop.Medium`: *"The harvest in Kanye is expected to be about 13%
+smaller than the district average."* (Setswana: *"Thobo kwa Kanye e solofelwa go nna nnye ka
+13% go feta palogare ya kgaolo."*). The ID is `CR-<year>-<site>`, e.g. `CR-2024-KANYE`.
 
 ### 5.10 The outbreak rule: `find_outbreaks()` and `build_outbreak_alerts()`
 
@@ -798,7 +845,7 @@ The dashboard could read the CSV files directly. A database adds three things:
 
 | Table | Filled from | Rebuilt each run? | Notes |
 |---|---|---|---|
-| `alerts` | `final_alerts.csv` | yes | plus a column `animal_id`, read from the ID (`LS-20260926-H3-05-STRAY` → `H3-05`) |
+| `alerts` | `final_alerts.csv` | yes | including the Setswana columns `subject_tn`, `reason_tn`, `details_tn`; plus a column `animal_id`, read from the ID (`LS-20260926-H3-05-STRAY` → `H3-05`) |
 | `crop_data` | `crop_data.csv` | yes | key: site + date |
 | `livestock_data` | `livestock_data.csv` | yes | key: animal + date; index on date for the map |
 | `reference_yields` | `public_reference_yields.csv` | yes | |
@@ -946,9 +993,17 @@ templates = Jinja2Templates(directory=HERE / "templates")
   `src/static/js/app.js` at `/static/js/app.js`.
 - `templates`: HTML files with placeholders that are filled in on the server ([7.4](#74-the-html-templates)).
 
-Two helpers are made available to the templates:
+**Language.** `index()` decides the page's language: a link like `/?lang=tn` wins, otherwise
+the cookie `lang` that the language switch sets, otherwise English (`i18n.language()` only
+accepts `en` and `tn`). It hands the templates:
 
-- `nice_date`: turns `2026-09-30` into `Wed 30 Sep 2026` (used in the day menu).
+- `t(key, **values)`: a text in that language, e.g. `t('tab.crops')` → `Dijalo`
+- `day_label(iso)`: a date for the day menu, e.g. `Wed 30 Sep 2026` / `Laboraro 30 Lwetse 2026`
+- `strings`: **all** texts in that language, which `base.html` passes on to `app.js`
+- `tn_drafts`: whether to show the "draft translation" note
+
+One more helper is available to all templates:
+
 - `version(path)`: returns the time the file was last changed. The templates add it to the
   CSS and JavaScript links (`app.js?v=1791843260`). When the file changes, the link changes,
   so the browser loads the new file instead of an old copy from its cache.
@@ -1075,16 +1130,20 @@ The templates use **Jinja2**. Normal HTML, plus:
 |---|---|---|
 | `{{ ... }}` | insert a value | `{{ summary.open_by_risk.High }}` → `3` |
 | `{% ... %}` | logic: loops, conditions, blocks | `{% for d in dates %}...{% endfor %}` |
-| `{{ d \| nice_date }}` | apply a filter | `Wed 30 Sep 2026` |
+| `{{ t('tab.crops') }}` | a text in the page's language | `Crops` / `Dijalo` |
 | `{{ url_for('static', path='css/style.css') }}` | link to a static file | `/static/css/style.css` |
 
-**Inheritance.** `base.html` is the frame: `<head>`, fonts, CSS, and the `<script>` tags
-for Leaflet and Chart.js. `index.html` starts with `{% extends "base.html" %}` and fills the
+**Inheritance.** `base.html` is the frame: `<head>`, fonts, CSS, the `<script>` tags
+for Leaflet and Chart.js, and `<script id="i18n-data" type="application/json">`, which
+contains all texts in the page's language for `app.js` (`tojson` turns the Python dict into
+safe JSON). `<html lang="en">` or `lang="tn"` tells browsers and screen readers the language. `index.html` starts with `{% extends "base.html" %}` and fills the
 `{% block body %}` with the actual page.
 
 **What `index.html` contains**, from top to bottom:
 
-1. **The top bar**: logo, the four tab buttons, the "Sample data" pill.
+1. **The top bar**: logo, the four tab buttons, the **English / Setswana switch** and the
+   "Sample data" pill. **No text is written directly in the HTML**: every visible word is
+   `{{ t('…') }}`, so the whole page follows the language.
 2. **The overview tiles**: High open, Medium open, crop sites at risk, animals with alerts,
    outbreak warnings. These numbers are filled in **on the server** (from `data.summary()`),
    so they appear instantly.
@@ -1101,6 +1160,23 @@ The tabs follow the accessibility pattern for tabs: `role="tab"`, `aria-selected
 
 This file is plain JavaScript, no framework. It runs once when the page has loaded and is
 organised in sections: helpers, tabs, alerts, livestock, crops, sensors, start.
+
+#### Language
+
+```javascript
+const I18N = JSON.parse(document.getElementById("i18n-data").textContent);
+function t(key, values = {}) { ... }       // t("sensors.collar", { id: "H1-01" }) -> "Collar H1-01"
+const loc = (alert, field) => ...;         // loc(alert, "reason") -> reason_tn in Setswana mode
+```
+
+- `I18N` is the dictionary of all texts that the server put into the page, already in the
+  page's language. `t()` looks a key up and fills the `{placeholders}`, exactly like
+  `i18n.say()` in Python. Every text the JavaScript writes goes through `t()`.
+- `loc(alert, "reason")` returns the alert's Setswana column (`reason_tn`) in Setswana mode,
+  and the English one otherwise or if the Setswana is missing.
+- **The switch** (English / Setswana buttons) stores the choice in the cookie `lang` and
+  reloads the page; the server then renders everything in the new language. The open tab
+  stays open, because it is remembered in `localStorage`.
 
 #### Helpers at the top
 
@@ -1141,9 +1217,9 @@ tab; otherwise the last one used; otherwise Alerts.
 1. `loadAlerts()` reads the filter menus (type, risk, status), asks `/api/alerts?...` and
    calls `renderAlerts()`.
 2. `renderAlerts()` builds one table row per alert: risk badge, subject and category, the
-   reason with expandable details, the advice (`advice()` picks English or Setswana), the
-   dates (`when()`), and a status menu.
-3. When a filter changes, the list is loaded again; switching the language only redraws.
+   reason with expandable details (both via `loc()`, so in the page's language), the advice
+   (`advice()` takes `advice_tn` in Setswana mode), the dates (`when()`), and a status menu.
+3. When a filter changes, the list is loaded again.
 4. When a status menu changes, the code sends `PATCH /api/alerts/<id>/status` and reloads
    the list and the tiles.
 
@@ -1523,6 +1599,15 @@ top of `src/alert_engine.py`. Then run the engine and the database builder.
 `AGRISENSE_LIVE_HIGH_TEMP_C=38 uvicorn src.main:app --reload`, or change the default in
 `src/data.py`.
 
+**Change or translate any text of the site or of the alerts**: edit `data/translations.csv`
+(e.g. in Excel, saved as CSV UTF-8). Keep the key and the `{placeholders}`; set `tn_status` to
+`checked` once a native speaker has approved the Setswana. Reload the page; for alert texts,
+run the engine and the database builder first.
+
+**Add a new text to the site**: add a row with a new key to `translations.csv`, then use
+`{{ t('your.key') }}` in a template or `t("your.key")` in `app.js`. Never write visible text
+directly into the HTML or JavaScript, or it won't change language.
+
 **Improve or translate an advice text**: edit `data/advice_templates.csv` (the `advice_en`
 or `advice_tn` column), then run the engine and the database builder.
 
@@ -1623,6 +1708,7 @@ These are worth saying openly in the report and at the demo:
 | **Status code** | The number in a server's answer: 200 OK, 201 Created, 404 Not found, 422 invalid data, … |
 | **t/ha** | Tonnes per hectare: harvest per area. |
 | **Template (HTML)** | An HTML file with placeholders filled in by the server (Jinja2). |
+| **Translation key** | The name of a text in `translations.csv`, e.g. `tab.crops`; the code uses the key, the file holds the English and Setswana. Making a program multilingual this way is called *internationalisation* (i18n: "i", 18 letters, "n"). |
 | **Transaction** | Several database changes that happen completely or not at all. |
 | **XSS** | Cross-site scripting: injecting code into a web page through data; prevented by escaping (`esc`). |
 | **z-score** | How many standard deviations a value is above (+) or below (−) the average. |

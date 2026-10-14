@@ -77,6 +77,16 @@ a { color: var(--primary); }
   font-size: 0.8rem; padding: 6px 14px; border-radius: 999px; background: var(--subtle);
   color: var(--ink-2); white-space: nowrap;
 }
+.bar-end { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Language switch: two buttons, the active one filled */
+.lang-switch { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--subtle); }
+.lang-switch button {
+  padding: 6px 14px; border: none; border-radius: 999px; background: none; cursor: pointer;
+  font-size: 0.85rem; font-weight: 500; color: var(--ink-2);
+}
+.lang-switch button[aria-pressed="true"] { background: var(--primary); color: #F3F6F8; font-weight: 700; }
+.lang-switch button:hover:not([aria-pressed="true"]) { color: var(--dark); }
+.draft-note { margin: 8px 4px 0; font-size: 0.8rem; color: var(--muted); }
 
 /* ----------------------------------------------------------- overview */
 .overview { padding: 20px 24px 0; }
@@ -116,13 +126,6 @@ main { padding: 20px 24px 40px; }
   min-width: 160px; padding: 8px 12px; border: 1px solid var(--muted); border-radius: 10px;
   background: var(--surface); color: var(--ink);
 }
-.lang {
-  display: flex; gap: 16px; margin: 0; padding: 6px 14px; background: var(--surface);
-  border: 1px solid var(--line); border-radius: 10px;
-}
-.lang legend { font-weight: 700; font-size: 0.85rem; color: var(--ink-2); padding: 0 4px; }
-.lang label { flex-direction: row; align-items: center; gap: 6px; font-size: 1rem; color: var(--ink); font-weight: 500; }
-.lang input { width: 20px; height: 20px; accent-color: var(--accent); }
 .count { color: var(--muted); margin: 8px 0; }
 
 /* -------------------------------------------------------------- tables */

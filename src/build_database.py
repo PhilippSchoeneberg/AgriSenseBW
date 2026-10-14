@@ -41,7 +41,10 @@ CREATE TABLE alerts (
     days        INTEGER,
     details     TEXT,
     lat         REAL,
-    lon         REAL
+    lon         REAL,
+    subject_tn  TEXT,  -- the texts in Setswana
+    reason_tn   TEXT,
+    details_tn  TEXT
 );
 CREATE INDEX alerts_animal ON alerts (animal_id);
 CREATE TABLE crop_data (
