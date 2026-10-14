@@ -3,3 +3,5 @@ data/agrisense.db
 __pycache__/
 .DS_Store
 .claude/
+# Wi-Fi password and server address for the gateway firmware
+firmware/gateway/config.h

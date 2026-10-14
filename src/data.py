@@ -6,11 +6,15 @@ can later be swapped for another database without touching the web code.
 from __future__ import annotations
 
 import math
+import os
 import re
 import sqlite3
+import statistics
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
-from .build_database import STATUSES, build, db_path, now
+from .build_database import STATUSES, build, db_path, ensure_live_tables, now
 
 RISK_ORDER = "CASE risk_level WHEN 'High' THEN 0 WHEN 'Medium' THEN 1 ELSE 2 END"
 ALERT_ORDER = (f"(a.category = 'disease_outbreak') DESC, {RISK_ORDER}, "
@@ -23,6 +27,7 @@ def connect() -> sqlite3.Connection:
         build(path)
     con = sqlite3.connect(path)
     con.row_factory = sqlite3.Row
+    ensure_live_tables(con)  # databases built before the sensor table existed
     return con
 
 
@@ -183,3 +188,110 @@ def crop_prediction(alert: dict) -> dict:
             "location": alert["subject"].removeprefix("Crops in "),
             "predicted_t_ha": float(match["predicted"]) if match else None,
             "pct_of_average": int(match["pct"]) if match else None}
+
+
+# ---------------------------------------------------------------------- sensors
+# Live readings from the hardware prototype (firmware/collar_node, firmware/gateway).
+LOCAL_TIME = ZoneInfo("Africa/Gaborone")
+# The collar measures skin temperature with an infrared sensor, which reads lower than
+# body temperature. This threshold is for demonstrating the alert, not a vet's fever line.
+LIVE_HIGH_TEMP_C = float(os.environ.get("AGRISENSE_LIVE_HIGH_TEMP_C", "37.5"))
+NOT_SEEN_AFTER_S = 60   # a collar not heard for this long is "not seen"
+SENSOR_COLUMNS = ["animal_id", "body_temp_c", "ambient_c", "activity", "rssi",
+                  "rain_level", "rain_raw", "rain_wet"]
+
+
+def store_readings(gateway_id: str, lat: float | None, lon: float | None,
+                   readings: list[dict]) -> int:
+    """Save one batch from a gateway; every reading gets the time it arrived."""
+    received = now()
+    rows = [(received, gateway_id, r["sensor"], *[r.get(c) for c in SENSOR_COLUMNS], lat, lon)
+            for r in readings]
+    columns = ", ".join(["received_at", "gateway_id", "sensor", *SENSOR_COLUMNS, "lat", "lon"])
+    marks = ", ".join("?" * (len(SENSOR_COLUMNS) + 5))
+    with closing(connect()) as con, con:
+        con.executemany(f"INSERT INTO sensor_readings ({columns}) VALUES ({marks})", rows)
+    return len(rows)
+
+
+def _age_s(iso: str, now_dt: datetime) -> int:
+    return int((now_dt - datetime.fromisoformat(iso)).total_seconds())
+
+
+def live_sensors(minutes: int = 10) -> dict:
+    """Latest state of every collar, the rain sensor and the gateways, plus recent history."""
+    now_dt = datetime.now(timezone.utc)
+    since = (now_dt - timedelta(minutes=minutes)).isoformat(timespec="seconds")
+    gateways = query("SELECT gateway_id, MAX(received_at) AS last_seen, lat, lon "
+                     "FROM sensor_readings GROUP BY gateway_id ORDER BY last_seen DESC")
+    for g in gateways:
+        g["seconds_ago"] = _age_s(g["last_seen"], now_dt)
+
+    collars = []
+    latest = query("SELECT r.* FROM sensor_readings r JOIN (SELECT animal_id, MAX(id) AS id "
+                   "FROM sensor_readings WHERE sensor = 'collar' GROUP BY animal_id) last "
+                   "USING (id) ORDER BY r.animal_id")
+    for c in latest:
+        age = _age_s(c["received_at"], now_dt)
+        temp = c["body_temp_c"]
+        status = ("not_seen" if age > NOT_SEEN_AFTER_S
+                  else "high_temperature" if temp is not None and temp >= LIVE_HIGH_TEMP_C
+                  else "ok")
+        series = query("SELECT received_at AS t, body_temp_c, activity FROM sensor_readings "
+                       "WHERE sensor = 'collar' AND animal_id = ? AND received_at >= ? "
+                       "ORDER BY id", (c["animal_id"], since))
+        collars.append({"animal_id": c["animal_id"], "last_seen": c["received_at"],
+                        "seconds_ago": age, "status": status, "body_temp_c": temp,
+                        "ambient_c": c["ambient_c"], "activity": c["activity"],
+                        "rssi": c["rssi"], "gateway_id": c["gateway_id"], "series": series})
+
+    rain = None
+    rain_rows = query("SELECT received_at AS t, rain_level, rain_wet, rain_raw FROM sensor_readings "
+                      "WHERE sensor = 'rain' ORDER BY id DESC LIMIT 1")
+    if rain_rows:
+        rain = {**rain_rows[0], "rain_wet": bool(rain_rows[0]["rain_wet"]),
+                "seconds_ago": _age_s(rain_rows[0]["t"], now_dt),
+                "series": query("SELECT received_at AS t, rain_level FROM sensor_readings "
+                                "WHERE sensor = 'rain' AND received_at >= ? ORDER BY id", (since,))}
+    return {"now": now_dt.isoformat(timespec="seconds"), "minutes": minutes,
+            "high_temp_threshold_c": LIVE_HIGH_TEMP_C, "not_seen_after_s": NOT_SEEN_AFTER_S,
+            "gateways": gateways, "collars": collars, "rain": rain}
+
+
+def sensor_days(herd_id: str = "LIVE", district: str = "Southern") -> dict[str, list[dict]]:
+    """Daily summaries of the live readings, in the shape of livestock_data.csv.
+
+    Days follow Botswana time. Body temperature is the daily median (robust against
+    single bad readings), activity the daily mean, the position that of the gateway.
+    Rain gets its own table: the rain sensor tells wet or dry, not millimetres.
+    """
+    rows = query("SELECT * FROM sensor_readings ORDER BY id")
+    animals: dict[tuple, list[dict]] = {}
+    rain: dict[str, list[dict]] = {}
+    for r in rows:
+        local_day = datetime.fromisoformat(r["received_at"]).astimezone(LOCAL_TIME).date().isoformat()
+        if r["sensor"] == "collar":
+            animals.setdefault((local_day, r["animal_id"]), []).append(r)
+        else:
+            rain.setdefault(local_day, []).append(r)
+
+    def middle(values):
+        values = [v for v in values if v is not None]
+        return round(statistics.median(values), 2) if values else None
+
+    def mean(values):
+        values = [v for v in values if v is not None]
+        return round(statistics.fmean(values), 1) if values else None
+
+    livestock = [{"date": d, "animal_id": a, "herd_id": herd_id, "district": district,
+                  "lat": rs[-1]["lat"], "lon": rs[-1]["lon"],
+                  "activity_level": mean(r["activity"] for r in rs),
+                  "body_temp_c": middle(r["body_temp_c"] for r in rs),
+                  "readings": len(rs)}
+                 for (d, a), rs in sorted(animals.items())]
+    rain_days = [{"date": d, "district": district,
+                  "wet_share": round(sum(bool(r["rain_wet"]) for r in rs) / len(rs), 3),
+                  "max_rain_level": max((r["rain_level"] or 0) for r in rs),
+                  "readings": len(rs)}
+                 for d, rs in sorted(rain.items())]
+    return {"livestock": livestock, "rain": rain_days}

@@ -3,18 +3,23 @@
 Run from the repository folder:
     uvicorn src.main:app --reload
 then open http://127.0.0.1:8000 (API documentation at /docs).
+
+For the hardware prototype the gateway must reach the laptop over Wi-Fi, so listen on
+all network interfaces:  uvicorn src.main:app --host 0.0.0.0 --reload
 """
 from __future__ import annotations
 
 import datetime as dt
+import os
+import secrets
 from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import data
 
@@ -47,11 +52,40 @@ class StatusUpdate(BaseModel):
     status: Status
 
 
+# --------------------------------------------------------- hardware prototype
+class CollarReading(BaseModel):
+    sensor: Literal["collar"]
+    animal_id: str = Field(pattern=r"^[A-Za-z0-9-]{1,6}$")
+    body_temp_c: float | None = Field(None, ge=-40, le=100, description="skin temperature (infrared)")
+    ambient_c: float | None = Field(None, ge=-40, le=100)
+    activity: int | None = Field(None, ge=0, le=100)
+    rssi: int | None = Field(None, ge=-127, le=20)
+
+
+class RainReading(BaseModel):
+    sensor: Literal["rain"]
+    rain_level: int = Field(ge=0, le=100)
+    rain_raw: int | None = Field(None, ge=0, le=4095)
+    rain_wet: bool
+
+
+class ReadingBatch(BaseModel):
+    gateway_id: str = Field(pattern=r"^[A-Za-z0-9_.-]{1,32}$")
+    lat: float | None = Field(None, ge=-90, le=90)
+    lon: float | None = Field(None, ge=-180, le=180)
+    readings: list[Annotated[CollarReading | RainReading, Field(discriminator="sensor")]] = Field(max_length=50)
+
+
+# If AGRISENSE_SENSOR_KEY is set, gateways must send the same text as X-Sensor-Key.
+SENSOR_KEY = os.environ.get("AGRISENSE_SENSOR_KEY", "")
+
+
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def index(request: Request):
     return templates.TemplateResponse(request, "index.html", {
         "summary": data.summary(),
         "dates": data.livestock_dates(),
+        "live_high_temp_c": data.LIVE_HIGH_TEMP_C,
     })
 
 
@@ -105,3 +139,26 @@ def get_animal(animal_id: str) -> dict:
 def get_crops() -> dict:
     """Yield per site and season, and the crop alerts with their predicted yield."""
     return data.crops()
+
+
+@app.post("/api/readings", status_code=201, tags=["sensors"])
+def post_readings(batch: ReadingBatch,
+                  x_sensor_key: Annotated[str | None, Header()] = None) -> dict:
+    """Receive a batch of live readings from a gateway (firmware/gateway)."""
+    if SENSOR_KEY and not secrets.compare_digest(x_sensor_key or "", SENSOR_KEY):
+        raise HTTPException(401, "Missing or wrong X-Sensor-Key")
+    stored = data.store_readings(batch.gateway_id, batch.lat, batch.lon,
+                                 [r.model_dump() for r in batch.readings])
+    return {"stored": stored}
+
+
+@app.get("/api/sensors/live", tags=["sensors"])
+def get_live_sensors(minutes: Annotated[int, Query(ge=1, le=240)] = 10) -> dict:
+    """Latest state of every collar and the rain sensor, with the last `minutes` of history."""
+    return data.live_sensors(minutes)
+
+
+@app.get("/api/sensors/daily", tags=["sensors"])
+def get_sensor_days() -> dict:
+    """Daily summaries of the live readings, shaped like livestock_data.csv."""
+    return data.sensor_days()

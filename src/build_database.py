@@ -93,6 +93,29 @@ CREATE TABLE IF NOT EXISTS alert_status (
 );
 """
 
+# Live readings from the hardware prototype (firmware/). Like alert_status, this table
+# is never dropped: rebuilding from the CSVs keeps every reading.
+SENSOR_SCHEMA = """
+CREATE TABLE IF NOT EXISTS sensor_readings (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    received_at TEXT NOT NULL,   -- UTC, ISO 8601
+    gateway_id  TEXT NOT NULL,
+    sensor      TEXT NOT NULL CHECK (sensor IN ('collar', 'rain')),
+    animal_id   TEXT,            -- collar only
+    body_temp_c REAL,            -- collar: skin temperature (infrared)
+    ambient_c   REAL,            -- collar: air temperature at the sensor
+    activity    INTEGER,         -- collar: 0-100, NULL without accelerometer
+    rssi        INTEGER,         -- collar: Bluetooth signal strength at the gateway
+    rain_level  INTEGER,         -- rain: 0-100
+    rain_raw    INTEGER,
+    rain_wet    INTEGER,         -- rain: 1 = raining
+    lat         REAL,            -- position of the gateway
+    lon         REAL
+);
+CREATE INDEX IF NOT EXISTS sensor_readings_latest
+    ON sensor_readings (sensor, animal_id, received_at);
+"""
+
 # table name -> (CSV file inside data/, read options)
 SOURCES = {
     "alerts": ("alerts/final_alerts.csv", {"encoding": "utf-8-sig"}),
@@ -119,6 +142,13 @@ def insert(con: sqlite3.Connection, table: str, df: pd.DataFrame) -> None:
                     df.itertuples(index=False, name=None))
 
 
+def ensure_live_tables(con: sqlite3.Connection) -> None:
+    """Create the tables that hold live data (statuses, sensor readings) if missing."""
+    for statement in (STATUS_SCHEMA + SENSOR_SCHEMA).split(";"):
+        if statement.strip():
+            con.execute(statement)
+
+
 def build(path: Path | None = None, source_dir: Path = DATA) -> dict[str, int]:
     """(Re)build the database at `path` from the CSVs and return row counts per table.
 
@@ -140,9 +170,10 @@ def build(path: Path | None = None, source_dir: Path = DATA) -> dict[str, int]:
         try:
             for table in SOURCES:
                 con.execute(f"DROP TABLE IF EXISTS {table}")
-            for statement in (SCHEMA + STATUS_SCHEMA).split(";"):
+            for statement in SCHEMA.split(";"):
                 if statement.strip():
                     con.execute(statement)
+            ensure_live_tables(con)
             for table, df in frames.items():
                 insert(con, table, df)
             con.executemany(
@@ -154,7 +185,7 @@ def build(path: Path | None = None, source_dir: Path = DATA) -> dict[str, int]:
             con.execute("ROLLBACK")
             raise
         counts = {table: con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-                  for table in [*SOURCES, "alert_status"]}
+                  for table in [*SOURCES, "alert_status", "sensor_readings"]}
     finally:
         con.close()
     return counts

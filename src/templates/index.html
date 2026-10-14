@@ -10,6 +10,7 @@
       <button role="tab" id="tab-crops" aria-controls="panel-crops" aria-selected="false" tabindex="-1">Crops</button>
       <button role="tab" id="tab-livestock" aria-controls="panel-livestock" aria-selected="false" tabindex="-1">Livestock</button>
       <button role="tab" id="tab-alerts" aria-controls="panel-alerts" aria-selected="true">Alerts</button>
+      <button role="tab" id="tab-sensors" aria-controls="panel-sensors" aria-selected="false" tabindex="-1">Sensors</button>
     </nav>
     <span class="pill" title="Crop and livestock readings are simulated, not real farm data">Sample data</span>
   </div>
@@ -112,6 +113,19 @@
         <p class="note">Rule from the team plan: below 70% of average is High, 70–90% Medium, above 90% Low.</p>
       </div>
     </div>
+  </section>
+  <section id="panel-sensors" role="tabpanel" aria-labelledby="tab-sensors" hidden>
+    <div class="sensor-head">
+      <h2>Live from the hardware prototype</h2>
+      <p class="sensor-status" id="sensor-status" aria-live="polite">Waiting for data…</p>
+    </div>
+    <div class="sensors">
+      <div class="chart-card rain-card" id="rain-card"></div>
+      <div class="collar-grid" id="collar-cards"></div>
+    </div>
+    <p class="note">Collars measure skin temperature with an infrared sensor (GY-906), which reads lower than
+      body temperature. The {{ live_high_temp_c }} °C line is a demo threshold, not a veterinary fever limit.
+      A collar the gateway has not heard for a minute is shown as "not seen", the way a missing animal at the kraal would be.</p>
   </section>
 </main>
 {% endblock %}

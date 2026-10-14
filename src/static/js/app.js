@@ -39,7 +39,7 @@ function badge(risk) {
 
 // ------------------------------------------------------------------ tabs
 const tabs = [...document.querySelectorAll('[role="tab"]')];
-const onShow = { livestock: () => initLivestock(), crops: () => initCrops() };
+const onShow = { livestock: () => initLivestock(), crops: () => initCrops(), sensors: () => startSensors() };
 
 function selectTab(tab) {
   for (const t of tabs) {
@@ -50,6 +50,7 @@ function selectTab(tab) {
   }
   const name = tab.id.replace("tab-", "");
   try { localStorage.setItem("agrisense-tab", name); } catch { /* storage unavailable */ }
+  if (name !== "sensors") stopSensors();
   onShow[name]?.();
 }
 
@@ -461,6 +462,132 @@ async function initCrops() {
 
 // ------------------------------------------------------------------ start
 loadAlerts();
+// --------------------------------------------------------------- sensors
+// Live readings from the hardware prototype, refreshed every few seconds while the tab is open.
+const SENSOR_REFRESH_MS = 3000;
+let sensorTimer = null;
+const sensorCharts = new Map();  // animal_id -> Chart
+
+function startSensors() {
+  if (sensorTimer) return;
+  loadSensors();
+  sensorTimer = setInterval(loadSensors, SENSOR_REFRESH_MS);
+}
+
+function stopSensors() {
+  clearInterval(sensorTimer);
+  sensorTimer = null;
+}
+
+function ago(seconds) {
+  if (seconds < 60) return `${seconds} s ago`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min ago`;
+  return `${Math.round(seconds / 3600)} h ago`;
+}
+
+const localTime = (t) => new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const COLLAR_STATUS = {
+  high_temperature: { risk: "High", text: "High temperature" },
+  not_seen: { risk: "Medium", text: "Not seen" },
+  ok: { risk: "Low", text: "OK" },
+};
+
+async function loadSensors() {
+  let live;
+  try {
+    live = await api("/api/sensors/live?minutes=10");
+  } catch (err) {
+    $("#sensor-status").textContent = `The dashboard could not load sensor data: ${err.message}`;
+    return;
+  }
+  const gw = live.gateways[0];
+  $("#sensor-status").textContent = !gw
+    ? "No data yet. Start the gateway and check SERVER_URL in firmware/gateway/config.h."
+    : gw.seconds_ago > 30
+      ? `Gateway ${gw.gateway_id} has not sent data for ${ago(gw.seconds_ago).replace(" ago", "")}.`
+      : `Gateway ${gw.gateway_id} connected · last data ${ago(gw.seconds_ago)}`;
+  renderRain(live.rain);
+  renderCollars(live);
+}
+
+function renderRain(rain) {
+  const card = $("#rain-card");
+  if (!rain) {
+    card.innerHTML = '<h2>Rain sensor</h2><p class="hint">No rain readings yet.</p>';
+    return;
+  }
+  card.innerHTML = `
+    <h2>Rain sensor</h2>
+    <p class="rain-state">${rain.rain_wet ? "Raining" : "Dry"}</p>
+    <div class="meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${rain.rain_level}"
+         aria-label="Wetness of the rain sensor"><span style="width:${rain.rain_level}%"></span></div>
+    <p class="hint">Wetness ${rain.rain_level} % · updated ${ago(rain.seconds_ago)}</p>`;
+}
+
+function renderCollars(live) {
+  const box = $("#collar-cards");
+  if (!live.collars.length) {
+    box.innerHTML = '<div class="chart-card"><h2>Collars</h2><p class="hint">No collar heard yet.</p></div>';
+    sensorCharts.forEach((c) => c.destroy());
+    sensorCharts.clear();
+    return;
+  }
+  // Build the cards once per collar, then only update their values and charts.
+  for (const c of live.collars) {
+    let card = box.querySelector(`[data-collar="${CSS.escape(c.animal_id)}"]`);
+    if (!card) {
+      if (!box.querySelector("[data-collar]")) box.innerHTML = "";
+      card = document.createElement("div");
+      card.className = "chart-card collar-card";
+      card.dataset.collar = c.animal_id;
+      card.innerHTML = `
+        <div class="collar-top"><h2>Collar ${esc(c.animal_id)}</h2><span class="collar-badge"></span></div>
+        <div class="animal-facts">
+          <div><span>Skin temperature</span><strong data-v="temp"></strong></div>
+          <div><span>Air temperature</span><strong data-v="ambient"></strong></div>
+          <div><span>Activity</span><strong data-v="activity"></strong></div>
+          <div><span>Last heard</span><strong data-v="seen"></strong></div>
+        </div>
+        <p class="chart-title">Skin temperature, last 10 minutes</p>
+        <div class="small-chart"><canvas aria-label="Skin temperature of collar ${esc(c.animal_id)}"></canvas></div>
+        <p class="hint no-series" hidden>No readings in the last 10 minutes.</p>`;
+      box.append(card);
+    }
+    const st = COLLAR_STATUS[c.status];
+    card.querySelector(".collar-badge").innerHTML = badge(st.risk).replace(`>${st.risk}<`, `>${st.text}<`);
+    card.classList.toggle("stale", c.status === "not_seen");
+    const fmt = (v, unit) => (v === null || v === undefined ? "–" : `${v.toFixed(1)} ${unit}`);
+    card.querySelector('[data-v="temp"]').textContent = fmt(c.body_temp_c, "°C");
+    card.querySelector('[data-v="ambient"]').textContent = fmt(c.ambient_c, "°C");
+    card.querySelector('[data-v="activity"]').textContent = c.activity ?? "no sensor";
+    card.querySelector('[data-v="seen"]').textContent = ago(c.seconds_ago);
+
+    // Time axis = the last 10 minutes up to now, so the newest reading is always on the right.
+    const end = Date.parse(live.now);
+    const start = end - live.minutes * 60000;
+    const temps = c.series.map((p) => ({ x: Date.parse(p.t), y: p.body_temp_c }));
+    const limit = [{ x: start, y: live.high_temp_threshold_c }, { x: end, y: live.high_temp_threshold_c }];
+    card.querySelector(".small-chart").hidden = !temps.length;
+    card.querySelector(".no-series").hidden = temps.length > 0;
+    let chart = sensorCharts.get(c.animal_id);
+    if (!chart) {
+      chart = lineChart(card.querySelector("canvas"), [
+        { label: "Skin temperature", data: temps, borderColor: COLORS.series[0], backgroundColor: COLORS.series[0] },
+        { label: `Demo threshold ${live.high_temp_threshold_c} °C`, data: limit,
+          borderColor: COLORS.high, backgroundColor: COLORS.high, borderDash: [6, 4] },
+      ], "°C", { y: { suggestedMin: 30, suggestedMax: 40 } });
+      chart.options.scales.x = { type: "linear", grid: { display: false },
+                                 ticks: { maxTicksLimit: 6, maxRotation: 0, callback: (v) => localTime(v) } };
+      chart.options.plugins.tooltip = { callbacks: { title: (items) => localTime(items[0].parsed.x) } };
+      sensorCharts.set(c.animal_id, chart);
+    }
+    chart.data.datasets[0].data = temps;
+    chart.data.datasets[1].data = limit;
+    Object.assign(chart.options.scales.x, { min: start, max: end });
+    chart.update("none");
+  }
+}
+
 // A link like /#livestock opens that tab; otherwise the last tab used, or Alerts.
 let startTab = location.hash.slice(1);
 try { startTab ||= localStorage.getItem("agrisense-tab"); } catch { /* storage unavailable */ }

@@ -238,7 +238,19 @@ th { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spac
 .plain { margin-top: 12px; }
 .plain th, .plain td { padding: 10px 8px; }
 
+/* ------------------------------------------------------------- sensors */
+.sensor-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-bottom: 14px; }
+.sensor-status { margin: 0; color: var(--muted); }
+.sensors { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr); gap: 20px; align-items: start; }
+.collar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+.collar-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.collar-card.stale { opacity: 0.7; }
+.rain-state { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.03em; margin: 10px 0 12px; }
+.meter { height: 14px; border-radius: 999px; background: var(--subtle); overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.3s; }
+
 @media (max-width: 1100px) {
+  .sensors { grid-template-columns: 1fr; }
   .livestock, .crops { grid-template-columns: 1fr; }
   #map { height: 440px; }
 }
