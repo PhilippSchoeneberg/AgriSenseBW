@@ -1,114 +1,97 @@
 # AgriSense BW hardware prototype
 
-Status: both programs compile; they have not yet been tested on the boards.
-
-A first prototype that measures live data for the dashboard's **Sensors** tab:
+An Arduino UNO measures rain and temperature and sends the readings over USB to the laptop,
+which forwards them to the dashboard's **Sensors** tab. Tested on the board. Rain and air
+temperature work. The skin temperature from the GY-906 we have does not
+(see [Limits](#limits-of-this-prototype)).
 
 ```
- Collar node                         Gateway / field station                Laptop
- Seeed XIAO nRF52840        BLE      ESP32-S (NodeMCU-32S)          Wi-Fi   FastAPI dashboard
- + GY-906 (skin temperature) ──────► + Flying Fish rain sensor     ───────► POST /api/readings
- + accelerometer (Sense only)                                                 → Sensors tab
+ UNO sensor station              USB      Laptop
+ Arduino UNO                   ────────►  serial_bridge.py  ──►  FastAPI dashboard
+ + Flying Fish rain sensor                                       POST /api/readings
+ + GY-906 infrared thermometer                                   → Sensors tab
 ```
 
-| Folder | Board | What it does |
+| File / folder | Runs on | What it does |
 |---|---|---|
-| `collar_node/` | Seeed XIAO nRF52840 (Sense) | Measures skin temperature, air temperature and activity; broadcasts them every 2 s over Bluetooth |
-| `gateway/` | ESP32 dev board | Listens for collars, reads the rain sensor, sends everything to the dashboard every 5 s |
-| `simulate_gateway.py` | none | Sends made-up readings like the gateway does: for testing, or as a backup at the booth |
+| `uno_station/uno_station.ino` | Arduino UNO | Reads the rain sensor and the GY-906 every 2 s and prints the readings as a line of JSON over USB |
+| `serial_bridge.py` | laptop | Forwards every line to the dashboard (`POST /api/readings`) |
 
 ## 1. Wiring
 
-**GY-906 (MLX90614) → XIAO nRF52840**
+| Sensor | Pin | UNO | Why |
+|---|---|---|---|
+| GY-906 (MLX90614) | VIN | 3.3V | This GY-906 pulls its data lines up to VIN; with 5V they measured 4.8 V, too much for the 3.3 V sensor chip |
+| | GND | GND | |
+| | SDA | A4 | |
+| | SCL | A5 | |
+| Flying Fish rain sensor (control board) | VCC | pin 7 | Powered only while measuring, so the plate corrodes less |
+| | GND | another GND (the UNO has three) | |
+| | AO | A0 | |
+| | DO | – | Not needed |
 
-| GY-906 | XIAO |
-|---|---|
-| VIN | 3V3 |
-| GND | GND |
-| SDA | D4 |
-| SCL | D5 |
+The plate connects to the rain sensor's control board with the two short wires; either way round works.
 
-**Flying Fish rain sensor (control board) → ESP32**
+## 2. Upload the UNO program
 
-| Rain sensor | ESP32 | Why |
-|---|---|---|
-| VCC | GPIO 25 | Powered only while measuring, so the plate corrodes less |
-| GND | GND | |
-| AO | GPIO 34 | Analog input on ADC1, which still works while Wi-Fi is on |
-| DO | – | Not needed |
+1. Open `uno_station/uno_station.ino` in the Arduino IDE. The UNO's board package (*Arduino AVR Boards*) comes with the IDE, and no libraries are needed.
+2. Choose the board *Arduino AVR Boards → Arduino Uno* and its port (`/dev/cu.usbmodem…`), then upload.
+3. In the Serial Monitor (115200 baud) you should see `# GY-906 found` and then, every 2 s, a line such as
+   `{"readings":[{"sensor":"rain","rain_level":2,"rain_raw":1004,"rain_wet":false},{"sensor":"collar","animal_id":"H1-02",…}]}`.
 
-The plate connects to the control board with the two short wires.
+**Calibrating the rain sensor:** note the `raw` value with a dry plate and with a soaking-wet plate, and put them into `RAIN_DRY_RAW` and `RAIN_WET_RAW` in `uno_station.ino`. The UNO reads 0–1023, so dry is about 1000.
 
-## 2. Arduino IDE setup (once)
+## 3. Run it
 
-1. **Board packages** (*Tools → Board → Boards Manager*). First add both URLs under *Settings → Additional boards manager URLs*:
-   - `https://espressif.github.io/arduino-esp32/package_esp32_index.json` → install **esp32** by Espressif
-   - `https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json` → install **Seeed nRF52 mbed-enabled Boards**
-2. **Libraries** (*Tools → Manage Libraries*): **ArduinoBLE**, **Adafruit MLX90614 Library**, **NimBLE-Arduino** and **Seeed Arduino LSM6DS3**.
-   For the last one, pick **version 2.0.3** in the version menu: versions 2.0.4 and 2.0.5 don't compile with the Seeed mbed board package.
+1. Install the Python packages once (`pyserial` is needed for the bridge):
 
-## 3. Collar node
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-1. Open `collar_node/collar_node.ino`.
-2. Set `ANIMAL_ID` to a name of up to 6 letters, digits or hyphens, e.g. `"H1-01"`. Every collar needs its own.
-3. Choose the board *Seeed nRF52 mbed-enabled Boards → XIAO nRF52840 Sense*, or *XIAO nRF52840* for the version without the accelerometer. Either way, the code finds out at start-up whether an accelerometer is there.
-4. Upload, then open the Serial Monitor at 115200 baud. It shows `GY-906 found` and a line with the values every 2 s.
+2. Start the dashboard:
 
-LED: blue = starting, short green flash = values sent, red = GY-906 not found.
+   ```bash
+   uvicorn src.main:app --reload
+   ```
 
-## 4. Gateway
+3. **Close the Arduino IDE's Serial Monitor** (only one program can use the port), then start the bridge in a second terminal:
 
-1. Copy `gateway/config.example.h` to `gateway/config.h` and enter:
-   - your Wi-Fi name and password. The ESP32 only uses 2.4 GHz Wi-Fi; a phone hotspot works.
-   - the laptop's address in `SERVER_URL`. Find it with `ipconfig getifaddr en0`.
+   ```bash
+   python firmware/serial_bridge.py
+   ```
 
-   `config.h` is ignored by git, so the password stays on your computer.
-2. Choose the board *esp32 → ESP32 Dev Module* (or *NodeMCU-32S*). Set *Tools → Partition Scheme* to **Huge APP (3MB No OTA/1MB SPIFFS)**, then upload.
-   Bluetooth and Wi-Fi together need the space: with the default scheme the program fills 97% of it, with Huge APP 40%.
-3. In the Serial Monitor (115200 baud) you should see `Rain sensor raw … -> level …` and `POST … -> 201` every 5 s.
+   It finds the UNO by itself; otherwise pass `--port /dev/cu.usbmodem…`. Every 2 s it prints what it forwarded and the dashboard's answer (`201`). Stop it with Ctrl+C.
 
-**Calibrating the rain sensor:** note the `raw` value with a dry plate and with a soaking-wet plate, and put them into `RAIN_DRY_RAW` and `RAIN_WET_RAW`.
+On the **Sensors** tab, the rain sensor has its own card. The GY-906 appears as collar `H1-02` (`TEMP_SENSOR_ID` in `uno_station.ino`), because the dashboard shows temperatures per animal.
 
-## 5. Dashboard
+Optional protection: start the dashboard with `AGRISENSE_SENSOR_KEY=some-secret` and the bridge with `--key some-secret`. Readings without the key are then rejected.
 
-The gateway has to reach the laptop over the network, so start the dashboard on all network interfaces:
+## 4. Booth demo
 
-```bash
-uvicorn src.main:app --host 0.0.0.0 --reload
-```
+- **Rain:** drip a little water on the rain plate. Within 2 s the rain card shows *Raining*.
+- **High temperature (needs a working GY-906):** hold a warm cup or your palm close (1–2 cm) in front of the GY-906. Once the skin temperature passes the demo threshold (37.5 °C, configurable with `AGRISENSE_LIVE_HIGH_TEMP_C`), the card of H1-02 turns red. With the current sensor, the card only shows the air temperature.
 
-Open the **Sensors** tab. macOS may ask whether Python may accept incoming connections: allow it.
-
-Optional protection: start the dashboard with `AGRISENSE_SENSOR_KEY=some-secret` and put the same text into `SENSOR_KEY` in `config.h`. Readings without the key are then rejected.
-
-### Test without hardware
-
-```bash
-python firmware/simulate_gateway.py
-```
-
-It sends three collars and a rain sensor. One collar warms up past the threshold and one goes quiet, so all three states appear on the Sensors tab.
-
-## 6. Booth demo
-
-- **High temperature:** hold a warm cup or your palm close (1–2 cm) in front of the GY-906. Once the skin temperature passes the demo threshold (37.5 °C, configurable with `AGRISENSE_LIVE_HIGH_TEMP_C`), the collar card turns red.
-- **Rain:** drip a little water on the rain plate. Within 5 s the rain card shows *Raining*.
-- **Missing animal:** switch the collar off, or walk away with it. After a minute the card shows *Not seen*, as an animal missing from the kraal would.
-
-## 7. From readings to the alert engine
+## 5. From readings to the alert engine
 
 ```bash
 python -m src.sensor_export
 ```
 
 This writes daily summaries to `data/input/`:
-- `sensor_livestock_daily.csv` has the same columns as `livestock_data.csv`, so the livestock model can run on real collar data.
+- `sensor_livestock_daily.csv` has the same columns as `livestock_data.csv`, so the livestock model can run on real sensor data.
 - `sensor_rain_daily.csv` has the share of wet readings per day.
 
 ## Limits of this prototype
 
+- **The GY-906 we have is probably faulty or a counterfeit.** Cheap GY-906 boards often carry fake MLX90614 chips. The tests found:
+  - It only answers right after one pass over all I2C addresses (as an I2C scanner does), and stops answering again within 0.1 s. Calling its own address repeatedly does not wake it.
+  - The UNO's I2C hardware (the `Wire` library) gets no answer from it at any speed; a slower software I2C does. The same sensor also failed on a XIAO nRF52840 and an ESP32 tried earlier.
+  - Its air temperature is right, but its skin temperature is mostly nonsense, such as −170 °C with a valid checksum, and only sometimes plausible. The station sends temperatures outside −20 to 80 °C as "no value".
+  - Its configuration word reads `0xAFF4`; the factory value commonly reported for the usual variant is `0x9FB4`.
+
+  A new GY-906 from a reliable shop should work with the same wiring and code.
 - **Skin, not body temperature:** the GY-906 measures surface temperature without contact. It reads lower than body temperature and changes with sun, wind and hair, so a real fever threshold needs calibrating against a vet thermometer.
 - **Wet or dry, not millimetres:** the rain sensor shows whether it rains, not how much. Real rainfall needs a tipping-bucket rain gauge.
-- **No GPS yet:** collars are placed at the gateway's position. A NEO-6M or NEO-M8N module would add real positions.
-- **Short range:** Bluetooth reaches tens of metres. Real herds need LoRa or a mobile network (LTE-M / NB-IoT), plus a solar-powered gateway.
-- **Test company ID:** the collars broadcast with company ID 0xFFFF, which is reserved for testing.
+- **On a cable:** the UNO sends over USB, so it has to sit next to the laptop. A station in the field needs a board or module with Wi-Fi, LoRa or a mobile network, plus a battery or solar power.
+- **One fixed position:** all readings carry the position given to the bridge (`--lat`, `--lon`). Animals on the move would need a collar with GPS.

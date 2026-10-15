@@ -10,7 +10,7 @@ AgriSense BW is an AI-powered smart agriculture platform that empowers farmers w
 | `data/`             | `advice_templates.csv` (advice) and `translations.csv` (all other texts) in English and Setswana; the generated `agrisense.db` |
 | `models/livestock/` | Livestock monitoring notebook and chart                                                                          |
 | `src/`              | Early-warning engine, database builder and the FastAPI dashboard (`main.py`, `data.py`, `templates/`, `static/`) |
-| `firmware/`         | Hardware prototype: collar node (XIAO nRF52840), gateway (ESP32) and a simulator, see `firmware/README.md`        |
+| `firmware/`         | Hardware prototype: Arduino UNO sensor station and its USB bridge, see `firmware/README.md`                       |
 | `slides/`           | Slides summarizing the project                                                                                   |
 | `doc/`              | Team task plan, design files and the beginner's code guide `CODE_GUIDE.md`                                                                                 |
 
@@ -23,8 +23,7 @@ All commands run from this folder. Install the packages once with `pip install -
 | Early-warning engine | `python -m src.alert_engine`                                             | `data/alerts/final_alerts.csv` from the crop and livestock alerts        |
 | Database             | `python -m src.build_database`                                           | `data/agrisense.db` (SQLite) from all CSV files; alert statuses are kept |
 | Dashboard            | `uvicorn src.main:app --reload`                                          | http://127.0.0.1:8000, API documentation at `/docs`                      |
-| With live sensors    | `uvicorn src.main:app --host 0.0.0.0 --reload`                           | The gateway can reach the dashboard over Wi-Fi; see the **Sensors** tab   |
-| Sensor test data     | `python firmware/simulate_gateway.py`                                    | Made-up collar and rain readings, without hardware                       |
+| Live sensors         | `python firmware/serial_bridge.py` (dashboard running)                   | Rain and temperature from the UNO station on the **Sensors** tab          |
 | Sensor daily export  | `python -m src.sensor_export`                                            | Daily sensor summaries in `data/input/`, shaped like `livestock_data.csv` |
 
 All crop and livestock data in this repository is sample data.

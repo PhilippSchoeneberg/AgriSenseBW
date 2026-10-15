@@ -4,8 +4,8 @@ Run from the repository folder:
     uvicorn src.main:app --reload
 then open http://127.0.0.1:8000 (API documentation at /docs).
 
-For the hardware prototype the gateway must reach the laptop over Wi-Fi, so listen on
-all network interfaces:  uvicorn src.main:app --host 0.0.0.0 --reload
+Live sensor readings arrive at POST /api/readings from the UNO sensor station, through
+firmware/serial_bridge.py (see firmware/README.md).
 
 Language: the page is shown in English or Setswana, chosen with the switch in the top
 bar (stored in the cookie "lang") or with a link like http://127.0.0.1:8000/?lang=tn.
@@ -150,7 +150,7 @@ def get_crops() -> dict:
 @app.post("/api/readings", status_code=201, tags=["sensors"])
 def post_readings(batch: ReadingBatch,
                   x_sensor_key: Annotated[str | None, Header()] = None) -> dict:
-    """Receive a batch of live readings from a gateway (firmware/gateway)."""
+    """Receive a batch of live readings, e.g. from firmware/serial_bridge.py."""
     if SENSOR_KEY and not secrets.compare_digest(x_sensor_key or "", SENSOR_KEY):
         raise HTTPException(401, "Missing or wrong X-Sensor-Key")
     stored = data.store_readings(batch.gateway_id, batch.lat, batch.lon,

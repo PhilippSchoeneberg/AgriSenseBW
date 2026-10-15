@@ -191,7 +191,7 @@ def crop_prediction(alert: dict) -> dict:
 
 
 # ---------------------------------------------------------------------- sensors
-# Live readings from the hardware prototype (firmware/collar_node, firmware/gateway).
+# Live readings from the hardware prototype (firmware/uno_station via firmware/serial_bridge.py).
 LOCAL_TIME = ZoneInfo("Africa/Gaborone")
 # The collar measures skin temperature with an infrared sensor, which reads lower than
 # body temperature. This threshold is for demonstrating the alert, not a vet's fever line.

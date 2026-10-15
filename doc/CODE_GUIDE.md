@@ -70,7 +70,7 @@ flowchart LR
     H --> I[("data/agrisense.db<br/>SQLite")]
     I --> J["src/data.py + src/main.py<br/>(FastAPI server)"]
     J --> K["Browser:<br/>templates + app.js"]
-    L["Collar + gateway<br/>(firmware/)"] -- "POST /api/readings" --> J
+    L["UNO sensor station<br/>+ serial_bridge.py (firmware/)"] -- "POST /api/readings" --> J
 ```
 
 In words:
@@ -224,7 +224,7 @@ sequenceDiagram
   |---|---|---|
   | 200 | OK | normal answers |
   | 201 | Created | readings were stored |
-  | 401 | Unauthorized | a gateway sent the wrong key |
+  | 401 | Unauthorized | the sensor bridge sent the wrong key |
   | 404 | Not found | unknown alert or animal ID |
   | 422 | Unprocessable | the request data is invalid (e.g. temperature 500 °C) |
 
@@ -237,8 +237,7 @@ sequenceDiagram
 ### 2.7 Microcontrollers (only for the hardware part)
 
 A **microcontroller** is a tiny computer on one chip that runs one program forever. We use
-two boards: an **ESP32** (has Wi-Fi and Bluetooth) and a **Seeed XIAO nRF52840** (very low
-power, Bluetooth). They are programmed in **Arduino C++** with the Arduino IDE.
+an **Arduino UNO**, programmed in **Arduino C++** with the Arduino IDE.
 
 Every Arduino program (*sketch*, file ending `.ino`) has two functions:
 
@@ -248,9 +247,8 @@ void loop()  { /* runs again and again, forever */ }
 ```
 
 Terms you will meet: **I2C** (a two-wire connection, SDA and SCL, to talk to sensors),
-**analog input** (reads a voltage as a number, 0–4095 on the ESP32), **BLE** (Bluetooth Low
-Energy) and **advertising** (a BLE device shouting a few bytes into the air for anyone to
-hear, with no pairing needed).
+**analog input** (reads a voltage as a number, 0–1023 on the UNO) and **serial port** (the
+USB connection over which the UNO sends text to the laptop).
 
 ---
 
@@ -260,7 +258,7 @@ hear, with no pairing needed).
 AgriSenseBW/
 ├── README.md                  short project description, layout and run commands
 ├── requirements.txt           Python libraries to install
-├── .gitignore                 files git should not track (database file, Wi-Fi password, ...)
+├── .gitignore                 files git should not track (database file, caches, ...)
 ├── data/
 │   ├── input/                 Eddie's sample data (the "measurements")
 │   │   ├── crop_data.csv
@@ -289,10 +287,9 @@ AgriSenseBW/
 │       ├── img/logo.svg       the AgriSense BW logo
 │       └── vendor/            libraries we did not write: Leaflet, Chart.js, Space Grotesk font
 ├── firmware/                  PART 4: hardware prototype
-│   ├── collar_node/           program for the XIAO nRF52840 collar
-│   ├── gateway/               program for the ESP32 gateway (+ config.example.h)
-│   ├── simulate_gateway.py    sends fake readings, for testing without hardware
-│   └── README.md              wiring and flashing instructions
+│   ├── uno_station/           program for the Arduino UNO sensor station
+│   ├── serial_bridge.py       forwards the UNO's readings to the dashboard
+│   └── README.md              wiring and upload instructions
 ├── slides/                    presentation decks
 └── doc/                       task plan, design files and this guide
 ```
@@ -473,7 +470,7 @@ Other constants:
   **most serious first**.
 - `ANIMAL_CATEGORIES`: the per-animal categories and their short code for the alert ID
   (`ILL`, `MOV`, `ACT`, `STRAY`). `NORMAL_CODE = "OK"` is the code for the Low entries.
-- `CROP_REASON`: the regular expression that reads Thapelo's text ([5.8](#58-crop-alerts-build_crop_alerts)).
+- `CROP_REASON`: the regular expression that reads Thapelo's text ([5.9](#59-crop-alerts-build_crop_alerts)).
 
 ### 5.3 The order of work: `main()`
 
@@ -851,7 +848,7 @@ The dashboard could read the CSV files directly. A database adds three things:
 | `reference_yields` | `public_reference_yields.csv` | yes | |
 | `advice_templates` | `advice_templates.csv` | yes | key: type + category + risk level |
 | `alert_status` | the dashboard | **never dropped** | `alert_id`, `status` (open / acknowledged / resolved), `updated_at` |
-| `sensor_readings` | the hardware gateway | **never dropped** | one row per live reading ([8.4](#84-the-server-side-receiving-storing-showing)) |
+| `sensor_readings` | the UNO station (via the bridge) | **never dropped** | one row per live reading ([8.4](#84-the-server-side-receiving-storing-showing)) |
 
 The table definitions are written in SQL at the top of the file (`SCHEMA`,
 `STATUS_SCHEMA`, `SENSOR_SCHEMA`), for example:
@@ -972,8 +969,8 @@ uvicorn src.main:app --reload
 `src.main`". `--reload` restarts the server automatically when you change a Python file.
 Open http://127.0.0.1:8000 in the browser. Stop the server with `Ctrl+C`.
 
-With the hardware, add `--host 0.0.0.0` so other devices on the network (the gateway) can
-reach it, not only the laptop itself.
+The sensor bridge runs on the same laptop, so the dashboard doesn't need to be reachable from
+other devices. (`--host 0.0.0.0` would allow that, e.g. for a board sending over Wi-Fi.)
 
 ### 7.2 `src/main.py`: the web server and the API
 
@@ -1040,7 +1037,7 @@ All endpoints:
 | `GET /api/livestock/positions?date=` | `get_positions()` | every animal's position on that day (default: the last day) and its alerts so far; **404** for a day without data |
 | `GET /api/livestock/{animal_id}` | `get_animal()` | one animal's 30 days of readings, the rest-of-herd activity and its alerts; **404** if unknown |
 | `GET /api/crops` | `get_crops()` | yield per site and season, the district average, the crop forecasts |
-| `POST /api/readings` | `post_readings()` | receives live readings from the gateway, **201** ([8.4](#84-the-server-side-receiving-storing-showing)) |
+| `POST /api/readings` | `post_readings()` | receives live readings from the sensor bridge, **201** ([8.4](#84-the-server-side-receiving-storing-showing)) |
 | `GET /api/sensors/live?minutes=10` | `get_live_sensors()` | latest state of collars and rain sensor, with recent history |
 | `GET /api/sensors/daily` | `get_sensor_days()` | daily summaries of the live readings |
 
@@ -1304,7 +1301,7 @@ the same settings, so all charts look alike.
 (`setInterval`); `stopSensors()` stops this when you leave the tab, so the page doesn't keep
 asking the server in the background. `loadSensors()` asks `/api/sensors/live`:
 
-- The status line shows whether the gateway is connected and when it last sent data.
+- The status line shows whether the sensor station is sending and when it last sent data.
 - `renderRain()` shows "Raining" or "Dry" and a bar for how wet the sensor is.
 - `renderCollars()` shows one card per collar, with a status badge (**High temperature**,
   **Not seen** or **OK**), the values, and a chart of the last 10 minutes. The cards and
@@ -1348,106 +1345,94 @@ background tiles need internet; without them the dots still appear on a plain ba
 
 ## 8. Part 4: the hardware prototype and live sensors
 
-**Folder:** [`firmware/`](../firmware/README.md) (wiring, setup and flashing are in its README)
+**Folder:** [`firmware/`](../firmware/README.md) (wiring and upload instructions are in its README)
 
 ```
- Collar node                          Gateway / field station               Laptop
- XIAO nRF52840                BLE     ESP32                         Wi-Fi    FastAPI dashboard
- + GY-906 (skin temperature) ───────► + Flying Fish rain sensor   ───────►  POST /api/readings
- + accelerometer (Sense only)                                                → Sensors tab
+ UNO sensor station              USB      Laptop
+ Arduino UNO                   ────────►  serial_bridge.py  ──►  FastAPI dashboard
+ + Flying Fish rain sensor                                       POST /api/readings
+ + GY-906 infrared thermometer                                   → Sensors tab
 ```
+
+The UNO has no Wi-Fi, so the readings take a detour through the laptop: the UNO prints them
+over USB, and a small Python script forwards them to the server.
+
+The GY-906 we have is probably faulty (see "Limits" in `firmware/README.md`). Its air
+temperature is right, but its skin temperature mostly isn't.
 
 ### 8.1 The parts
 
 | Part | What it is | Role |
 |---|---|---|
-| Seeed **XIAO nRF52840** (Sense) | tiny low-power board with Bluetooth; the *Sense* version has an accelerometer | the "collar" computer |
-| **GY-906** (MLX90614) | infrared thermometer: measures the temperature of whatever it points at, without contact, plus its own (air) temperature | skin temperature |
-| **ESP32** | board with Wi-Fi and Bluetooth | the "gateway" at the kraal or field |
+| **Arduino UNO** | simple microcontroller board with labelled pins, no Wi-Fi | the "sensor station", connected to the laptop by USB |
 | **Flying Fish** rain sensor | a plate whose electrical resistance drops when wet, plus a small control board | rain yes/no and how wet |
+| **GY-906** (MLX90614) | infrared thermometer: measures the temperature of whatever it points at, without contact, plus its own (air) temperature | skin temperature |
 
-### 8.2 The collar program: `firmware/collar_node/collar_node.ino`
+### 8.2 The UNO program: `firmware/uno_station/uno_station.ino`
 
-**`setup()`** (runs once):
+**`setup()`** (runs once) prepares the pins and checks whether the GY-906 answers. It prints
+`# GY-906 found` or a hint about the wiring. Lines starting with `#` are messages for people.
 
-- starts the GY-906 (`mlx.begin()`) and the accelerometer (`imu.begin()`). The code
-  remembers which ones were found, so the same program runs on the XIAO with and without
-  accelerometer.
-- starts Bluetooth (`BLE.begin()`).
+**`loop()`** (runs forever) measures every 2 seconds:
 
-**`loop()`** (runs forever):
+1. `readRainRaw()` switches the rain sensor on through pin 7, waits 50 ms, reads A0 eight
+   times and averages it, and switches the sensor off again. Powering it only while
+   measuring slows down corrosion of the plate. The raw value (about 1000 = dry, lower = wet)
+   becomes a **level 0–100** with `map()`; from level 20 on it counts as raining.
+2. `readMlx()` reads the GY-906 twice: the temperature of what it points at (register `0x07`,
+   the "skin") and its own temperature (`0x06`, the air).
+3. It **prints one line of JSON** with both readings, e.g.
+   `{"readings":[{"sensor":"rain","rain_level":2,"rain_raw":1004,"rain_wet":false},{"sensor":"collar","animal_id":"H1-02","body_temp_c":null,"ambient_c":23.09,"activity":null,"rssi":null}]}`.
+   The GY-906 is sent as a "collar" with the ID `H1-02`, because the dashboard shows
+   temperatures per animal. Missing values are `null`.
 
-- every 50 ms: `sampleMotion()` reads the accelerometer. It measures the total acceleration
-  and how far it differs from 1 g (Earth's gravity). An animal standing still measures
-  exactly 1 g, so the difference is 0; movement makes it bigger.
-- every 2 s: `broadcast()` reads the temperatures, turns the collected motion into an
-  **activity index** 0–100 (`activityIndex()`: the average difference from 1 g, times 200,
-  so 0.5 g → 100), and **advertises** the values over Bluetooth.
+**Reading the GY-906.** The sensor speaks I2C (more exactly SMBus). The UNO sends the number
+of a *register* and gets three bytes back: the value, low byte first, and a checksum (PEC, a
+CRC-8, computed by `crc8()`). The value counts in steps of 0.02 kelvin, so
+°C = value × 0.02 − 273.15. Answers are thrown away if the checksum is wrong, if the error bit
+is set, or if the value is 0 (the sensor has just started).
 
-**The advertisement.** The collar does not connect to anything; it shouts 17 bytes into the
-air, and anyone listening can read them. The bytes are laid out like this
-("manufacturer data"):
+**Software I2C.** The UNO's I2C hardware (the `Wire` library) got no answer from our GY-906 at
+any speed. So the program drives the two wires itself ("bit banging"): `busStart()`,
+`busWrite()`, `busRead()` and `busStop()` produce the I2C signals step by step, with 10 µs
+pauses. The pins act as **open drain**: they only pull a line low (`OUTPUT`, `LOW`) or let go
+of it (`INPUT`), and the sensor board's resistors pull it high. This sensor also only answers
+right after one pass over all I2C addresses, so every reading starts with `mlxWake()`, which
+does exactly that.
 
-| Byte(s) | Content | Example |
-|---|---|---|
-| 0–1 | company ID `0xFFFF` (reserved for testing) | `FF FF` |
-| 2–3 | the letters `A`, `S`, so the gateway knows it's one of ours | `41 53` |
-| 4 | format version | `01` |
-| 5–10 | animal ID, 6 characters, padded with zeros | `H1-01\0` |
-| 11–12 | skin temperature × 100 as a 16-bit number | 33.12 °C → `3312` |
-| 13–14 | air temperature × 100 | 24.50 °C → `2450` |
-| 15 | activity 0–100, or 255 = "no accelerometer" | `35` |
-| 16 | sequence number, counts up with every broadcast | `7` |
+**Plausibility.** `plausible()` drops temperatures outside −20 to 80 °C. Our GY-906 sometimes
+reports skin temperatures such as −170 °C with a valid checksum; these are sent as `null`.
 
-Why "× 100"? Sending whole numbers is simpler than sending decimal numbers, and two
-decimals are plenty. The numbers are stored **little-endian**: the low byte first (that's
-what `putInt16` does).
+### 8.3 The bridge: `firmware/serial_bridge.py`
 
-The RGB LED flashes green after each broadcast; red means the GY-906 was not found.
-
-### 8.3 The gateway program: `firmware/gateway/gateway.ino`
-
-**Settings.** `config.h` holds the Wi-Fi name and password, the laptop's address
-(`SERVER_URL`), an optional key, the gateway's name and its position. You copy
-`config.example.h` to `config.h` and fill it in. `config.h` is listed in `.gitignore`, so
-your password never ends up on GitHub.
-
-**Listening for collars.** The gateway uses the **NimBLE** Bluetooth library and scans all
-the time. For every advertisement it hears, `CollarListener::onResult()` runs:
-
-1. ignore it unless it has manufacturer data with company ID `0xFFFF` and the letters `AS`
-2. read the animal ID and the values from the byte positions in the table above
-3. store them in the `collars` table (up to 10 collars), with the time it was heard and the
-   signal strength (**RSSI**, received signal strength indicator; closer to 0 means stronger)
-
-Bluetooth runs in its own **task** (a separate thread) on the ESP32, at the same time as
-the main `loop()`. To stop both from using the `collars` table at the same moment, the
-code wraps every access in `portENTER_CRITICAL` / `portEXIT_CRITICAL` (a *critical
-section*: "nobody else may touch this until I'm done").
-
-**Every 5 seconds, `loop()`:**
-
-1. `readRain()` switches the rain sensor on through GPIO 25, waits 50 ms, reads the analog
-   input on GPIO 34 eight times and averages it, and switches the sensor off again. Powering
-   it only while measuring slows down corrosion of the plate. The raw value (4095 = dry, lower
-   = wet) is converted to a **level 0–100** with `map()`, and from level 20 on it counts as
-   raining.
-2. `buildJson()` builds a JSON text with the rain reading and every collar heard in the
-   last 15 seconds. Missing values are sent as `null`.
-3. `send()` connects to Wi-Fi if needed and sends the JSON with `HTTP POST` to
-   `SERVER_URL`, with the key in the header `X-Sensor-Key` if one is set. The on-board LED
-   shows whether the server accepted it.
-
-An example of what the gateway sends:
-
-```json
-{"gateway_id": "booth-1", "lat": -24.98000, "lon": 25.34000,
- "readings": [
-   {"sensor": "rain", "rain_level": 0, "rain_raw": 4095, "rain_wet": false},
-   {"sensor": "collar", "animal_id": "H1-01", "body_temp_c": 33.12, "ambient_c": 24.50,
-    "activity": null, "rssi": -60}
- ]}
+```bash
+python firmware/serial_bridge.py
 ```
+
+The script runs on the laptop next to the dashboard:
+
+1. `find_port()` looks for the UNO among the serial ports (by the USB vendor number of
+   Arduino boards). If it's not clear which port it is, you pass `--port`.
+2. It opens the port with **pyserial** at 115200 baud and reads line by line. Opening the
+   port restarts the UNO, which is normal.
+3. For every JSON line it builds the message the server expects, adding the station's name
+   (`gateway_id`, default `uno-station`) and position (`--lat`, `--lon`):
+
+   ```json
+   {"gateway_id": "uno-station", "lat": -24.98, "lon": 25.34,
+    "readings": [
+      {"sensor": "rain", "rain_level": 2, "rain_raw": 1004, "rain_wet": false},
+      {"sensor": "collar", "animal_id": "H1-02", "body_temp_c": null, "ambient_c": 23.09,
+       "activity": null, "rssi": null}
+    ]}
+   ```
+
+4. `post()` sends it to `POST /api/readings` with Python's `urllib`, with the key in the
+   header `X-Sensor-Key` if `--key` is given, and prints a short summary and the server's
+   answer (`201`).
+
+Lines starting with `#` are printed but not sent. If the UNO is unplugged, the script waits
+and tries again every 3 seconds.
 
 ### 8.4 The server side: receiving, storing, showing
 
@@ -1471,7 +1456,7 @@ clock, so the server's time is used.
 
 **Showing: `data.live_sensors()`** prepares the Sensors tab:
 
-- for each gateway: when it last sent something
+- for each sending station (`gateway_id`): when it last sent something
 - for each collar: its latest reading and a **status**:
 
   | Status | Rule |
@@ -1491,27 +1476,8 @@ which is lower than body temperature. It's a demo value, not a vet's fever line.
 
 - `data/input/sensor_livestock_daily.csv`: one row per collar and day, in **the same
   columns as `livestock_data.csv`**: the median skin temperature, the average activity, and
-  the gateway's position (the collars have no GPS yet). So Abel's livestock model could run
-  on real collar data.
+  the station's position. So Abel's livestock model could run on real sensor data.
 - `data/input/sensor_rain_daily.csv`: per day, the share of readings that were wet.
-
-### 8.5 Testing without hardware: `firmware/simulate_gateway.py`
-
-```bash
-python firmware/simulate_gateway.py
-```
-
-This script pretends to be the gateway and sends a message every 5 seconds, using only
-Python's standard library (`urllib`):
-
-- collar H1-01: normal temperature
-- collar H1-02: warms up past the threshold after about a minute
-- collar H1-03: stops sending after 90 s, so it becomes "not seen"
-- rain sensor: dry, then wet, then dry again
-
-so all three collar states and the rain card appear on the Sensors tab. It is also a backup
-for a booth demo if the hardware fails. `batch(step)` computes the values from the step
-number, so the behaviour is the same every time.
 
 ---
 
@@ -1551,10 +1517,9 @@ number, so the behaviour is the same every time.
 
 ### Journey 2: from a warm hand to a red card (live sensors)
 
-1. You hold your hand in front of the GY-906. The collar reads, say, 37.9 °C.
-2. Within 2 s, the collar broadcasts the bytes with `3790` at positions 11–12.
-3. The gateway's `onResult()` hears it and stores 37.90 °C for the collar.
-4. Within 5 s, the gateway's `loop()` sends the JSON with `"body_temp_c": 37.90` to
+1. You hold your hand in front of the GY-906 (a working one). The UNO reads, say, 37.9 °C.
+2. Within 2 s, the UNO prints the JSON line with `"body_temp_c": 37.90` for `H1-02`.
+3. `serial_bridge.py` reads the line, adds the station's name and position, and sends it to
    `POST /api/readings`.
 5. `main.py` checks it with the Pydantic models (and the key), `data.store_readings()`
    saves it with the arrival time.
@@ -1576,10 +1541,9 @@ All commands from the repository folder.
 | (re)build the database | `python -m src.build_database` |
 | both in one go | `python -m src.alert_engine && python -m src.build_database` |
 | start the dashboard | `uvicorn src.main:app --reload` → http://127.0.0.1:8000 |
-| dashboard reachable for the gateway | `uvicorn src.main:app --host 0.0.0.0 --reload` |
 | API documentation | http://127.0.0.1:8000/docs |
 | open a tab directly | http://127.0.0.1:8000/#livestock (or `#crops`, `#alerts`, `#sensors`) |
-| fake sensor data | `python firmware/simulate_gateway.py` |
+| live sensors from the UNO | `python firmware/serial_bridge.py` (dashboard running, Serial Monitor closed) |
 | daily sensor summaries | `python -m src.sensor_export` |
 | look into the database | `sqlite3 data/agrisense.db` |
 | use a test database | `AGRISENSE_DB=/tmp/test.db uvicorn src.main:app` |
@@ -1621,8 +1585,8 @@ or `advice_tn` column), then run the engine and the database builder.
    stops if it's missing)
 5. `CATEGORY_LABELS` in `app.js`: the display name in the alert list
 
-**Add a collar**: flash `collar_node.ino` with a new `ANIMAL_ID`. Nothing else is needed;
-the gateway and dashboard pick it up automatically.
+**Rename the thermometer on the dashboard** (`H1-02`): change `TEMP_SENSOR_ID` in
+`uno_station.ino` (1–6 letters, digits or `-`) and upload again. A new GY-906 needs no change.
 
 **Add an API endpoint**: write a function in `data.py` that returns plain data, then a route
 in `main.py` that calls it (copy an existing one). It appears in `/docs` automatically.
@@ -1641,12 +1605,13 @@ in `main.py` that calls it (copy an existing one). It appears in `/docs` automat
 | The engine stops with "advice_templates.csv has no advice for: …" | A new combination needs a row in `advice_templates.csv`. |
 | The map is grey | No internet for the map tiles. The dots still work. |
 | A change in `app.js` or `style.css` doesn't show | Reload the page. If it still doesn't, force-reload (`Cmd+Shift+R`). |
-| Gateway: `POST ... -> 401` | `SENSOR_KEY` in `config.h` doesn't match `AGRISENSE_SENSOR_KEY` on the laptop. |
-| Gateway: `POST ... -> 422` | The data is invalid, often an `ANIMAL_ID` longer than 6 characters or with other characters than letters, digits and `-`. The Serial Monitor shows the server's explanation. |
-| Gateway: `POST ... -> -1` | The laptop can't be reached: wrong `SERVER_URL`, server not started with `--host 0.0.0.0`, different Wi-Fi network, or macOS's firewall blocked Python. |
-| ESP32 upload: "Sketch too big" | Set *Tools → Partition Scheme* to "Huge APP". |
-| XIAO compile error about `setBitOrder` | Install version 2.0.3 of the "Seeed Arduino LSM6DS3" library; 2.0.4 and 2.0.5 don't compile with the mbed board package. |
-| Collar Serial Monitor: "GY-906 NOT found" | Check the wiring: SDA → D4, SCL → D5, VIN → 3V3, GND → GND. |
+| Bridge: `Resource busy` / `could not open port` | Another program uses the UNO's port, usually the Arduino IDE's Serial Monitor. Close it. |
+| Bridge: `Could not tell which port is the UNO` | Pass the port: `python firmware/serial_bridge.py --port /dev/cu.usbmodem…` (the Arduino IDE shows it under *Tools → Port*). |
+| Bridge: `failed (… Connection refused)` | The dashboard isn't running. Start it with `uvicorn src.main:app --reload`. |
+| Bridge: `401` | `--key` doesn't match `AGRISENSE_SENSOR_KEY` of the dashboard. |
+| Bridge: `422` | The data is invalid, e.g. a `TEMP_SENSOR_ID` longer than 6 characters. The bridge prints the server's explanation. |
+| UNO: `# GY-906 NOT found` | Check the wiring: VIN → 3.3V, GND → GND, SDA → A4, SCL → A5. |
+| H1-02 shows no skin temperature | The GY-906 sent an implausible value (see "Limits" in `firmware/README.md`). |
 
 ---
 
@@ -1669,9 +1634,10 @@ These are worth saying openly in the report and at the demo:
 - **One GPS position per day** means movement at night can't be seen.
 - **The crop "average" is the district average over all sites and years**, not each site's
   own average; Mabutsane is Medium against the district average but normal for itself.
-- **The hardware prototype is a first version.** It measures skin, not body temperature;
-  the rain sensor shows wet/dry, not millimetres; the collars have no GPS; Bluetooth only
-  reaches tens of metres; and the firmware has been compiled but not yet tested on the boards.
+- **The hardware prototype is a first version.** The UNO sends over a USB cable, so it sits
+  next to the laptop. The GY-906 measures skin, not body temperature, and the one we have
+  is probably faulty: its skin values are mostly implausible. The rain sensor shows wet/dry,
+  not millimetres.
 - **SQLite is fine for a demo**, but a real service with many users would use a database
   server such as PostgreSQL.
 
@@ -1681,7 +1647,6 @@ These are worth saying openly in the report and at the demo:
 
 | Term | Meaning |
 |---|---|
-| **Advertising (BLE)** | A Bluetooth device sending a few bytes to anyone nearby, without pairing. |
 | **Alert** | One row in `final_alerts.csv`: something that happened, how serious it is, and what to do. |
 | **Alert ID** | The unique name of an alert, built from its content so it stays the same between runs (`LS-…`, `CR-…`, `OB-…`). |
 | **API** | URLs that return data (JSON) instead of web pages, here everything under `/api/`. |
@@ -1692,7 +1657,7 @@ These are worth saying openly in the report and at the demo:
 | **Endpoint / route** | One URL + method of the server, connected to one Python function. |
 | **Episode** | Consecutive days with the same problem for the same animal, merged into one alert. |
 | **Firmware** | The program running on a microcontroller. |
-| **Gateway** | The ESP32 that collects the collars' signals and forwards them to the server. |
+| **Gateway / station** | Whatever forwards sensor readings to the server; here `serial_bridge.py` for the UNO (`gateway_id` `uno-station`). |
 | **HTTP method** | `GET` (read), `POST` (send new), `PATCH` (change), … |
 | **I2C** | A two-wire connection (SDA, SCL) between a microcontroller and sensors. |
 | **JSON** | A text format for data: `{"key": "value"}`. |
@@ -1702,7 +1667,7 @@ These are worth saying openly in the report and at the demo:
 | **Pydantic model** | A Python class that describes and checks the shape of data (used by FastAPI). |
 | **Query string / parameter** | The part of a URL after `?`, e.g. `?risk=High`. |
 | **Regular expression** | A pattern for finding and extracting parts of text. |
-| **RSSI** | Signal strength of a received radio message, in dBm; closer to 0 is stronger. |
+| **RSSI** | Signal strength of a received radio message, in dBm; a field the server accepts for wireless collars (the UNO sends `null`). |
 | **Sliding window** | "The last 7 days" for each day in turn, as used by the outbreak rule. |
 | **SQL / SQLite** | The language for asking databases questions / the one-file database we use. |
 | **Status code** | The number in a server's answer: 200 OK, 201 Created, 404 Not found, 422 invalid data, … |

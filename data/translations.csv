@@ -142,7 +142,7 @@ sensors.title,Live from the hardware prototype,Ka nako eo go tswa mo sekaong sa 
 sensors.waiting,Waiting for data…,Go letilwe data…,draft
 sensors.note,"Collars measure skin temperature with an infrared sensor (GY-906), which reads lower than body temperature. The {threshold} °C line is a demo threshold, not a veterinary fever limit. A collar the gateway has not heard for a minute is shown as ""not seen"", the way a missing animal at the kraal would be.","Dikolara di lekanya mogote wa letlalo ka sensara ya infrared (GY-906), e e balang kwa tlase go feta mogote wa mmele. Mola wa {threshold} °C ke moedi wa pontsho, ga se moedi wa letshoroma wa bongaka. Kolara e gateway e sa e utlwang mo motsotsong o le mongwe e bontshiwa e le ""ga e bonwe"", fela jaaka phologolo e e seyong mo sakeng.",draft
 sensors.load_failed,The dashboard could not load sensor data: {error},Dashboard ga e a kgona go bula data ya disensara: {error},draft
-sensors.no_data,No data yet. Start the gateway and check SERVER_URL in firmware/gateway/config.h.,Ga go ise go nne le data. Simolola gateway mme o tlhatlhobe SERVER_URL mo firmware/gateway/config.h.,draft
+sensors.no_data,No data yet. Connect the UNO station and start: python firmware/serial_bridge.py,Ga go ise go nne le data. Golaganya UNO mme o simolole: python firmware/serial_bridge.py,draft
 sensors.gateway_quiet,Gateway {id} has not sent data for {time}.,Gateway {id} ga e a romela data mo {time}.,draft
 sensors.gateway_ok,Gateway {id} connected · last data {ago},Gateway {id} e kopane · data ya bofelo {ago},draft
 sensors.rain,Rain sensor,Sensara ya pula,draft
