@@ -34,7 +34,7 @@ Status = Literal["open", "acknowledged", "resolved"]
 
 app = FastAPI(
     title="AgriSense BW",
-    summary="Early-warning alerts for crops and livestock in Botswana (demo with sample data).",
+    summary="Early-warning alerts for crop and livestock in Botswana (demo with sample data).",
     version="1.0",
 )
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
@@ -141,7 +141,7 @@ def get_animal(animal_id: str) -> dict:
     return result
 
 
-@app.get("/api/crops", tags=["crops"])
+@app.get("/api/crops", tags=["crop"])
 def get_crops() -> dict:
     """Yield per site and season, and the crop alerts with their predicted yield."""
     return data.crops()

@@ -230,7 +230,7 @@ th { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spac
 .chart-title { font-size: 0.9rem; font-weight: 700; margin: 12px 0 0; }
 .animal-alerts { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; font-size: 0.9rem; }
 
-/* --------------------------------------------------------------- crops */
+/* --------------------------------------------------------------- crop */
 .crops { display: grid; grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr); gap: 20px; align-items: start; }
 .chart-card {
   margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-l);

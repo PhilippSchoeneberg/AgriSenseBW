@@ -164,7 +164,7 @@ def animal(animal_id: str) -> dict | None:
             "alerts": alerts(animal_id=animal_id)}
 
 
-# ------------------------------------------------------------------------ crops
+# ------------------------------------------------------------------------ crop
 def crops() -> dict:
     seasons = query("SELECT location, date, rainfall_mm, temperature_c, ndvi, yield_t_ha, "
                     "data_source FROM crop_data ORDER BY location, date")

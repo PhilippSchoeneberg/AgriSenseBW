@@ -1,7 +1,7 @@
 """Texts in English and Setswana, read from data/translations.csv.
 
 Every text of the dashboard and every sentence the alert engine writes has a key,
-e.g. "tab.crops", with its English (`en`) and Setswana (`tn`) version. Texts can
+e.g. "tab.crop", with its English (`en`) and Setswana (`tn`) version. Texts can
 contain placeholders in curly brackets, e.g. "Collar {id}", which `say()` fills in.
 
 `tn_status` says whether a native speaker has checked the Setswana: "draft" or

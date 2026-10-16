@@ -422,7 +422,7 @@ async function showAnimal(id) {
   ], t("livestock.activity"), { y: { beginAtZero: true } });
 }
 
-// ----------------------------------------------------------------- crops
+// ----------------------------------------------------------------- crop
 // Six overlapping lines are unreadable on a projector, so one site is highlighted
 // at a time and the others stay in the background in grey.
 let cropChart, cropSites = [];
